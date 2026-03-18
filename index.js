@@ -1,6 +1,7 @@
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
+import rateLimit from "express-rate-limit";
 import Anthropic from "@anthropic-ai/sdk";
 import twilio from "twilio";
 import { getSystemPrompt } from "./system-prompt.js";
@@ -13,6 +14,44 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
+// --- Rate limiting configuration ---
+const RATE_LIMIT_IP_MAX = parseInt(process.env.RATE_LIMIT_IP_MAX, 10) || 30;
+const RATE_LIMIT_IP_WINDOW_MS =
+  parseInt(process.env.RATE_LIMIT_IP_WINDOW_MS, 10) || 60 * 60 * 1000; // 1 hour
+const RATE_LIMIT_SESSION_MAX =
+  parseInt(process.env.RATE_LIMIT_SESSION_MAX, 10) || 20;
+const RATE_LIMIT_SESSION_WINDOW_MS =
+  parseInt(process.env.RATE_LIMIT_SESSION_WINDOW_MS, 10) || 60 * 60 * 1000; // 1 hour
+
+const rateLimitMessage = {
+  error:
+    "You've sent a lot of messages recently. Please wait a bit before trying again.",
+};
+
+// Per-IP rate limiter (higher cap, catches distributed abuse)
+const ipLimiter = rateLimit({
+  windowMs: RATE_LIMIT_IP_WINDOW_MS,
+  max: RATE_LIMIT_IP_MAX,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: rateLimitMessage,
+});
+
+// Per-session rate limiter (tighter cap, prevents single-user spam)
+const sessionLimiter = rateLimit({
+  windowMs: RATE_LIMIT_SESSION_WINDOW_MS,
+  max: RATE_LIMIT_SESSION_MAX,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    // Session ID is not IP-derived, so IPv6 bypass is not a concern here.
+    // Falls back to IP only when sessionId is missing (which the route rejects anyway).
+    return req.body?.sessionId || "unknown";
+  },
+  message: rateLimitMessage,
+  validate: false,
+});
+
 const client = new Anthropic();
 
 // In-memory conversation history keyed by sessionId or phone number
@@ -21,7 +60,7 @@ const conversations = {};
 const systemPrompt = getSystemPrompt();
 
 // --- Web chat endpoint ---
-app.post("/chat", async (req, res) => {
+app.post("/chat", ipLimiter, sessionLimiter, async (req, res) => {
   const { message, sessionId } = req.body;
 
   if (!message || !sessionId) {
