@@ -41,10 +41,10 @@ const mockLogRateLimit = vi.mocked(logRateLimit);
 const { createApp } = await import("../app.js");
 
 describe("routes", () => {
-  let app: ReturnType<typeof createApp>;
+  let app: Awaited<ReturnType<typeof createApp>>;
 
-  beforeEach(() => {
-    app = createApp();
+  beforeEach(async () => {
+    app = await createApp();
     mockSendChat.mockReset();
     mockIsProviderTimeoutError.mockClear();
     mockMatchFaq.mockReset();
@@ -84,7 +84,7 @@ describe("routes", () => {
     it("allows configured origins from env allowlist", async () => {
       process.env.CORS_ALLOWED_ORIGINS =
         "https://rioedwards.com,https://www.rioedwards.com";
-      const allowlistApp = createApp();
+      const allowlistApp = await createApp();
       delete process.env.CORS_ALLOWED_ORIGINS;
 
       const res = await request(allowlistApp)
@@ -97,26 +97,37 @@ describe("routes", () => {
       );
     });
 
-    it("defaults trust proxy to false outside production", () => {
-      const proxyApp = createApp();
+    it("defaults trust proxy to false outside production", async () => {
+      const proxyApp = await createApp();
       expect(proxyApp.get("trust proxy")).toBe(false);
     });
 
-    it("uses trust proxy in production by default", () => {
+    it("uses trust proxy in production by default", async () => {
       const previousNodeEnv = process.env.NODE_ENV;
       process.env.NODE_ENV = "production";
-      const proxyApp = createApp();
+      const proxyApp = await createApp();
       process.env.NODE_ENV = previousNodeEnv;
 
       expect(proxyApp.get("trust proxy")).toBe(1);
     });
 
-    it("supports explicit TRUST_PROXY override", () => {
+    it("supports explicit TRUST_PROXY override", async () => {
       process.env.TRUST_PROXY = "2";
-      const proxyApp = createApp();
+      const proxyApp = await createApp();
       delete process.env.TRUST_PROXY;
 
       expect(proxyApp.get("trust proxy")).toBe(2);
+    });
+
+    it("falls back to in-memory limiter when Redis is unavailable", async () => {
+      process.env.REDIS_URL = "redis://127.0.0.1:0";
+      process.env.REDIS_CONNECT_TIMEOUT_MS = "1";
+      const fallbackApp = await createApp();
+      delete process.env.REDIS_URL;
+      delete process.env.REDIS_CONNECT_TIMEOUT_MS;
+
+      const res = await request(fallbackApp).get("/health");
+      expect(res.status).toBe(200);
     });
   });
 
@@ -265,7 +276,7 @@ describe("routes", () => {
 
     it("accumulates conversation history across requests", async () => {
       // Use a dedicated app to isolate conversation state
-      const historyApp = createApp();
+      const historyApp = await createApp();
       const sessionId = `history-${Date.now()}`;
 
       mockMatchFaq.mockReturnValue(null);
@@ -320,7 +331,7 @@ describe("routes", () => {
 
     it("expires stale sessions after inactivity TTL", async () => {
       process.env.SESSION_TTL_MS = "1";
-      const ttlApp = createApp();
+      const ttlApp = await createApp();
       delete process.env.SESSION_TTL_MS;
 
       const sessionId = `ttl-${Date.now()}`;
@@ -500,7 +511,7 @@ describe("routes", () => {
     it("returns 429 after exceeding session limit", async () => {
       // Create app with very low session limit
       process.env.RATE_LIMIT_SESSION_MAX = "1";
-      const limitedApp = createApp();
+      const limitedApp = await createApp();
       delete process.env.RATE_LIMIT_SESSION_MAX;
 
       mockMatchFaq.mockReturnValue({
@@ -526,7 +537,7 @@ describe("routes", () => {
 
     it("logs rate limit events", async () => {
       process.env.RATE_LIMIT_SESSION_MAX = "1";
-      const limitedApp = createApp();
+      const limitedApp = await createApp();
       delete process.env.RATE_LIMIT_SESSION_MAX;
 
       mockMatchFaq.mockReturnValue({ intent: "greeting", reply: "hi" });

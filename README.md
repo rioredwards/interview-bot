@@ -11,6 +11,7 @@ It answers questions about Rio's work using a fast FAQ matcher first, then falls
 - TypeScript (`tsx` for dev, `tsc` for build)
 - Anthropic SDK (primary provider)
 - OpenAI SDK (optional fallback provider)
+- Redis-backed `express-rate-limit` store (optional)
 - Helmet security headers middleware
 - Twilio webhook endpoint for SMS
 - Vitest + Supertest test suite
@@ -124,6 +125,8 @@ Rate limiting config:
 - `RATE_LIMIT_IP_WINDOW_MS` (default: `3600000`)
 - `RATE_LIMIT_SESSION_MAX` (default: `20`)
 - `RATE_LIMIT_SESSION_WINDOW_MS` (default: `3600000`)
+- `REDIS_URL` (optional): enables shared Redis-backed rate limiter state across instances.
+- `REDIS_CONNECT_TIMEOUT_MS` (default: `2000`): timeout for initial Redis connection before fallback.
 
 Input limits:
 
@@ -141,6 +144,7 @@ Notes:
 - Fallback configuration is evaluated at process startup. Restart the server after changing related env vars.
 - Session cleanup is in-memory only. Restarts clear all sessions.
 - Provider timeout and shutdown settings are read at process startup. Restart after changing them.
+- Rate limiter uses Redis when `REDIS_URL` is available. If Redis is unavailable at startup, limiter falls back to in-memory mode.
 
 ## Deployment
 
@@ -179,9 +183,10 @@ curl https://<machine>.<tailnet>.ts.net/health
 3. Provide required env vars (`ANTHROPIC_API_KEY` at minimum).
 4. Set `CORS_ALLOWED_ORIGINS` to your portfolio origin(s).
 5. Set `TRUST_PROXY=1` unless your host docs require a different value.
-6. Set `PORT` only if your host requires a fixed value.
-7. Confirm public health endpoint returns `{ "status": "ok" }`.
-8. Point `NEXT_PUBLIC_INTERVIEW_BOT_URL` to the hosted HTTPS URL.
+6. Set `REDIS_URL` for shared rate limiting across replicas and restarts.
+7. Set `PORT` only if your host requires a fixed value.
+8. Confirm public health endpoint returns `{ "status": "ok" }`.
+9. Point `NEXT_PUBLIC_INTERVIEW_BOT_URL` to the hosted HTTPS URL.
 
 ## Production Operations
 
@@ -216,6 +221,7 @@ curl https://<machine>.<tailnet>.ts.net/health
 - If users see frequent `429`, raise `RATE_LIMIT_SESSION_MAX` first.
 - If traffic spikes from one source IP, tune `RATE_LIMIT_IP_MAX` and window.
 - Keep windows aligned to realistic user behavior, often 15-60 minutes.
+- For multi-replica deployments, set `REDIS_URL` so limits survive app restarts and stay shared across instances.
 
 ### Key rotation
 
@@ -263,6 +269,19 @@ Checks:
 1. Confirm network egress and provider API status.
 2. Increase `PROVIDER_TIMEOUT_MS` if upstream latency is consistently high.
 3. Validate fallback behavior by checking provider logs (`anthropic` vs `openai`).
+
+### Redis rate limiter fallback
+
+Symptoms:
+
+- Logs show `Redis unavailable for rate limiting. Falling back to in-memory store.`
+- Rate limit counters reset after app restart.
+
+Checks:
+
+1. Confirm `REDIS_URL` is set and reachable from the host.
+2. Increase `REDIS_CONNECT_TIMEOUT_MS` if startup networking is slow.
+3. Restart the app and verify rate limit counters persist across restart when Redis is healthy.
 
 ### Unexpected `429` responses
 

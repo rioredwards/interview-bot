@@ -9,7 +9,7 @@ function parsePositiveInt(value: string | undefined, fallback: number): number {
   return fallback;
 }
 
-const app = createApp();
+const app = await createApp();
 
 const PORT = process.env.PORT || 3333;
 const SHUTDOWN_GRACE_MS = parsePositiveInt(process.env.SHUTDOWN_GRACE_MS, 10000);

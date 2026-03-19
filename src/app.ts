@@ -1,7 +1,9 @@
 import express, { type NextFunction, type Request, type Response } from "express";
 import cors from "cors";
-import rateLimit from "express-rate-limit";
+import rateLimit, { type Store as RateLimitStore } from "express-rate-limit";
 import helmet from "helmet";
+import { RedisStore } from "rate-limit-redis";
+import { createClient } from "redis";
 import twilio from "twilio";
 import { getSystemPrompt } from "./system-prompt.js";
 import {
@@ -50,7 +52,42 @@ interface ConversationSession {
   lastActivityAt: number;
 }
 
-export function createApp() {
+async function connectRedisWithTimeout(url: string, timeoutMs: number) {
+  const client = createClient({ url });
+
+  client.on("error", (error) => {
+    console.error("Redis rate limiter client error:", error);
+  });
+
+  let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await Promise.race([
+      client.connect(),
+      new Promise<never>((_, reject) => {
+        timeoutHandle = setTimeout(() => {
+          reject(new Error(`Redis connection timed out after ${timeoutMs}ms`));
+        }, timeoutMs);
+      }),
+    ]);
+    return client;
+  } catch (error) {
+    client.destroy();
+    throw error;
+  } finally {
+    if (timeoutHandle) {
+      clearTimeout(timeoutHandle);
+    }
+  }
+}
+
+function createRedisStore(client: ReturnType<typeof createClient>, prefix: string) {
+  return new RedisStore({
+    sendCommand: (...args: string[]) => client.sendCommand(args),
+    prefix,
+  });
+}
+
+export async function createApp() {
   const app = express();
   const allowedOrigins = parseAllowlist(process.env.CORS_ALLOWED_ORIGINS);
   const trustProxy = parseTrustProxy(process.env.TRUST_PROXY);
@@ -62,6 +99,11 @@ export function createApp() {
     process.env.SESSION_CLEANUP_INTERVAL_MS,
     5 * 60 * 1000,
   );
+  const REDIS_CONNECT_TIMEOUT_MS = parsePositiveInt(
+    process.env.REDIS_CONNECT_TIMEOUT_MS,
+    2000,
+  );
+  const REDIS_URL = process.env.REDIS_URL?.trim();
 
   app.set("trust proxy", trustProxy);
   app.use(helmet());
@@ -115,9 +157,31 @@ export function createApp() {
       "You've sent a lot of messages recently. Please wait a bit before trying again.",
   };
 
+  let ipRateLimitStore: RateLimitStore | undefined;
+  let sessionRateLimitStore: RateLimitStore | undefined;
+  if (REDIS_URL) {
+    try {
+      const redisClient = await connectRedisWithTimeout(
+        REDIS_URL,
+        REDIS_CONNECT_TIMEOUT_MS,
+      );
+      ipRateLimitStore = createRedisStore(redisClient, "rl:ip:");
+      sessionRateLimitStore = createRedisStore(redisClient, "rl:session:");
+      console.log("Rate limiting store: redis");
+    } catch (error) {
+      console.error(
+        "Redis unavailable for rate limiting. Falling back to in-memory store.",
+        error,
+      );
+    }
+  } else {
+    console.log("Rate limiting store: memory (REDIS_URL not set)");
+  }
+
   const ipLimiter = rateLimit({
     windowMs: RATE_LIMIT_IP_WINDOW_MS,
     max: RATE_LIMIT_IP_MAX,
+    store: ipRateLimitStore,
     standardHeaders: true,
     legacyHeaders: false,
     message: rateLimitMessage,
@@ -134,6 +198,7 @@ export function createApp() {
   const sessionLimiter = rateLimit({
     windowMs: RATE_LIMIT_SESSION_WINDOW_MS,
     max: RATE_LIMIT_SESSION_MAX,
+    store: sessionRateLimitStore,
     standardHeaders: true,
     legacyHeaders: false,
     keyGenerator: (req: Request) => {
