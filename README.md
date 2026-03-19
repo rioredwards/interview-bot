@@ -188,6 +188,11 @@ curl https://<machine>.<tailnet>.ts.net/health
 8. Confirm public health endpoint returns `{ "status": "ok" }`.
 9. Point `NEXT_PUBLIC_INTERVIEW_BOT_URL` to the hosted HTTPS URL.
 
+### Railway config in repo
+
+- `railway.toml` defines build/start commands and `/health` health check defaults.
+- Railway runtime secrets still need to be set in Railway Variables.
+
 ## Production Operations
 
 ### Logging and observability
@@ -258,6 +263,12 @@ Run before deploy:
 npm run typecheck
 npm test
 npm run build
+```
+
+Post-deploy smoke check:
+
+```bash
+npm run deploy:check -- https://<your-railway-domain>
 ```
 
 ## Troubleshooting
