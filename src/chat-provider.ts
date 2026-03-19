@@ -6,9 +6,15 @@ export interface ChatMessage {
   content: string;
 }
 
+export interface TokenUsage {
+  inputTokens: number;
+  outputTokens: number;
+}
+
 export interface ChatResult {
   reply: string;
   provider: "anthropic" | "openai";
+  tokens?: TokenUsage;
 }
 
 const FALLBACK_ENABLED =
@@ -26,10 +32,15 @@ if (FALLBACK_ENABLED) {
   console.log("OpenAI fallback: disabled (no OPENAI_API_KEY or FALLBACK_ENABLED=false)");
 }
 
+interface ProviderResult {
+  reply: string;
+  tokens?: TokenUsage;
+}
+
 async function callAnthropic(
   systemPrompt: string,
   messages: ChatMessage[],
-): Promise<string> {
+): Promise<ProviderResult> {
   const response = await anthropic.messages.create({
     model: "claude-sonnet-4-5",
     max_tokens: 1024,
@@ -37,13 +48,19 @@ async function callAnthropic(
     messages,
   });
 
-  return response.content[0].type === "text" ? response.content[0].text : "";
+  const reply =
+    response.content[0].type === "text" ? response.content[0].text : "";
+  const tokens: TokenUsage = {
+    inputTokens: response.usage.input_tokens,
+    outputTokens: response.usage.output_tokens,
+  };
+  return { reply, tokens };
 }
 
 async function callOpenAI(
   systemPrompt: string,
   messages: ChatMessage[],
-): Promise<string> {
+): Promise<ProviderResult> {
   if (!openai) {
     throw new Error("OpenAI fallback is not configured");
   }
@@ -57,7 +74,14 @@ async function callOpenAI(
     ],
   });
 
-  return response.choices[0]?.message?.content ?? "";
+  const reply = response.choices[0]?.message?.content ?? "";
+  const tokens: TokenUsage | undefined = response.usage
+    ? {
+        inputTokens: response.usage.prompt_tokens,
+        outputTokens: response.usage.completion_tokens,
+      }
+    : undefined;
+  return { reply, tokens };
 }
 
 /**
@@ -69,8 +93,8 @@ export async function sendChat(
   messages: ChatMessage[],
 ): Promise<ChatResult> {
   try {
-    const reply = await callAnthropic(systemPrompt, messages);
-    return { reply, provider: "anthropic" };
+    const result = await callAnthropic(systemPrompt, messages);
+    return { ...result, provider: "anthropic" };
   } catch (err) {
     console.error("Anthropic error:", err);
 
@@ -80,8 +104,8 @@ export async function sendChat(
 
     console.log("Falling back to OpenAI...");
     try {
-      const reply = await callOpenAI(systemPrompt, messages);
-      return { reply, provider: "openai" };
+      const result = await callOpenAI(systemPrompt, messages);
+      return { ...result, provider: "openai" };
     } catch (openaiErr) {
       console.error("OpenAI fallback error:", openaiErr);
       throw openaiErr;

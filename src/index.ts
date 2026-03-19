@@ -6,6 +6,7 @@ import twilio from "twilio";
 import { getSystemPrompt } from "./system-prompt.js";
 import { sendChat, type ChatMessage } from "./chat-provider.js";
 import { matchFaq } from "./faq-router.js";
+import { logRequest, logRateLimit } from "./logger.js";
 
 const app = express();
 app.use(
@@ -37,6 +38,14 @@ const ipLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: rateLimitMessage,
+  handler: (req: Request, res: Response) => {
+    logRateLimit({
+      ip: req.ip ?? "unknown",
+      limiter: "ip",
+      sessionId: (req.body as { sessionId?: string })?.sessionId,
+    });
+    res.status(429).json(rateLimitMessage);
+  },
 });
 
 const sessionLimiter = rateLimit({
@@ -49,6 +58,14 @@ const sessionLimiter = rateLimit({
   },
   message: rateLimitMessage,
   validate: false,
+  handler: (req: Request, res: Response) => {
+    logRateLimit({
+      ip: req.ip ?? "unknown",
+      limiter: "session",
+      sessionId: (req.body as { sessionId?: string })?.sessionId,
+    });
+    res.status(429).json(rateLimitMessage);
+  },
 });
 
 // --- Input limits ---
@@ -95,23 +112,38 @@ app.post(
     }
     conversations[sessionId].push({ role: "user", content: message });
 
+    const start = Date.now();
+
     // Try FAQ cache before calling the LLM
     const faq = matchFaq(message);
     if (faq) {
-      console.log(`Chat response served by: faq (${faq.intent})`);
       conversations[sessionId].push({ role: "assistant", content: faq.reply });
+      logRequest({
+        event: "chat_request",
+        sessionId,
+        ip: req.ip ?? "unknown",
+        provider: "faq",
+        faqIntent: faq.intent,
+        durationMs: Date.now() - start,
+      });
       res.json({ reply: faq.reply });
       return;
     }
 
     try {
-      const { reply, provider } = await sendChat(
+      const { reply, provider, tokens } = await sendChat(
         systemPrompt,
         recentHistory(conversations[sessionId]),
       );
-      console.log(`Chat response served by: ${provider}`);
       conversations[sessionId].push({ role: "assistant", content: reply });
-
+      logRequest({
+        event: "chat_request",
+        sessionId,
+        ip: req.ip ?? "unknown",
+        provider,
+        tokens,
+        durationMs: Date.now() - start,
+      });
       res.json({ reply });
     } catch (err) {
       console.error("All providers failed:", err);
@@ -147,11 +179,20 @@ app.post("/sms", async (req: Request, res: Response) => {
   }
   conversations[from].push({ role: "user", content: body });
 
+  const start = Date.now();
+
   // Try FAQ cache before calling the LLM
   const faq = matchFaq(body);
   if (faq) {
-    console.log(`SMS response served by: faq (${faq.intent})`);
     conversations[from].push({ role: "assistant", content: faq.reply });
+    logRequest({
+      event: "sms_request",
+      sessionId: from,
+      ip: req.ip ?? "unknown",
+      provider: "faq",
+      faqIntent: faq.intent,
+      durationMs: Date.now() - start,
+    });
     twiml.message(
       faq.reply.length > 1600 ? faq.reply.slice(0, 1597) + "..." : faq.reply,
     );
@@ -160,13 +201,19 @@ app.post("/sms", async (req: Request, res: Response) => {
   }
 
   try {
-    const { reply, provider } = await sendChat(
+    const { reply, provider, tokens } = await sendChat(
       systemPrompt,
       recentHistory(conversations[from]),
     );
-    console.log(`SMS response served by: ${provider}`);
     conversations[from].push({ role: "assistant", content: reply });
-
+    logRequest({
+      event: "sms_request",
+      sessionId: from,
+      ip: req.ip ?? "unknown",
+      provider,
+      tokens,
+      durationMs: Date.now() - start,
+    });
     twiml.message(reply.length > 1600 ? reply.slice(0, 1597) + "..." : reply);
   } catch (err) {
     console.error("All providers failed:", err);
