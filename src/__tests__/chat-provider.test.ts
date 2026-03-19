@@ -25,7 +25,7 @@ vi.mock("openai", () => {
 process.env.OPENAI_API_KEY = "test-key";
 process.env.FALLBACK_ENABLED = "true";
 
-const { sendChat } = await import("../chat-provider.js");
+const { sendChat, isProviderTimeoutError } = await import("../chat-provider.js");
 const anthropicModule = await import("@anthropic-ai/sdk");
 const openaiModule = await import("openai");
 
@@ -171,6 +171,23 @@ describe("chat-provider", () => {
 
       const result = await sendChat(systemPrompt, messages);
       expect(result.tokens).toBeUndefined();
+    });
+
+    it("returns ProviderTimeoutError when both providers time out", async () => {
+      vi.useFakeTimers();
+      try {
+        anthropicCreate.mockImplementation(() => new Promise(() => {}));
+        openaiCreate.mockImplementation(() => new Promise(() => {}));
+
+        const assertion = expect(
+          sendChat(systemPrompt, messages),
+        ).rejects.toSatisfy((error: unknown) => isProviderTimeoutError(error));
+
+        await vi.advanceTimersByTimeAsync(30010);
+        await assertion;
+      } finally {
+        vi.useRealTimers();
+      }
     });
   });
 });

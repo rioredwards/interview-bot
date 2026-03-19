@@ -4,6 +4,9 @@ import request from "supertest";
 // Mock external dependencies before importing app
 vi.mock("../chat-provider.js", () => ({
   sendChat: vi.fn(),
+  isProviderTimeoutError: vi.fn(
+    (err: unknown) => err instanceof Error && err.name === "ProviderTimeoutError",
+  ),
   ChatMessage: {},
 }));
 
@@ -24,11 +27,12 @@ vi.mock("../system-prompt.js", () => ({
 vi.spyOn(console, "log").mockImplementation(() => {});
 vi.spyOn(console, "error").mockImplementation(() => {});
 
-const { sendChat } = await import("../chat-provider.js");
+const { sendChat, isProviderTimeoutError } = await import("../chat-provider.js");
 const { matchFaq } = await import("../faq-router.js");
 const { logRequest, logRateLimit } = await import("../logger.js");
 
 const mockSendChat = vi.mocked(sendChat);
+const mockIsProviderTimeoutError = vi.mocked(isProviderTimeoutError);
 const mockMatchFaq = vi.mocked(matchFaq);
 const mockLogRequest = vi.mocked(logRequest);
 const mockLogRateLimit = vi.mocked(logRateLimit);
@@ -42,6 +46,7 @@ describe("routes", () => {
   beforeEach(() => {
     app = createApp();
     mockSendChat.mockReset();
+    mockIsProviderTimeoutError.mockClear();
     mockMatchFaq.mockReset();
     mockLogRequest.mockReset();
     mockLogRateLimit.mockReset();
@@ -243,6 +248,21 @@ describe("routes", () => {
       expect(res.body.error).toContain("Something went wrong");
     });
 
+    it("returns 504 when providers time out", async () => {
+      mockMatchFaq.mockReturnValue(null);
+      const timeoutErr = new Error("timed out");
+      timeoutErr.name = "ProviderTimeoutError";
+      mockSendChat.mockRejectedValue(timeoutErr);
+
+      const res = await request(app)
+        .post("/chat")
+        .set("Content-Type", "application/json")
+        .send({ message: "hello", sessionId: "timeout-test" });
+
+      expect(res.status).toBe(504);
+      expect(res.body.error).toContain("taking too long");
+    });
+
     it("accumulates conversation history across requests", async () => {
       // Use a dedicated app to isolate conversation state
       const historyApp = createApp();
@@ -417,6 +437,21 @@ describe("routes", () => {
 
       expect(res.status).toBe(200);
       expect(res.text).toContain("Something went wrong");
+    });
+
+    it("returns friendly TwiML when providers time out", async () => {
+      mockMatchFaq.mockReturnValue(null);
+      const timeoutErr = new Error("timed out");
+      timeoutErr.name = "ProviderTimeoutError";
+      mockSendChat.mockRejectedValue(timeoutErr);
+
+      const res = await request(app)
+        .post("/sms")
+        .type("form")
+        .send({ From: "+15551234567", Body: "hello" });
+
+      expect(res.status).toBe(200);
+      expect(res.text).toContain("taking a bit longer than expected");
     });
 
     it("truncates long replies to 1600 chars", async () => {

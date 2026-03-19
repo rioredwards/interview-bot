@@ -4,7 +4,11 @@ import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 import twilio from "twilio";
 import { getSystemPrompt } from "./system-prompt.js";
-import { sendChat, type ChatMessage } from "./chat-provider.js";
+import {
+  isProviderTimeoutError,
+  sendChat,
+  type ChatMessage,
+} from "./chat-provider.js";
 import { matchFaq } from "./faq-router.js";
 import { logRequest, logRateLimit } from "./logger.js";
 
@@ -257,6 +261,14 @@ export function createApp() {
         });
         res.json({ reply });
       } catch (err) {
+        if (isProviderTimeoutError(err)) {
+          res.status(504).json({
+            error:
+              "I'm taking too long to respond right now. Please try again in a moment.",
+          });
+          return;
+        }
+
         console.error("All providers failed:", err);
         res
           .status(500)
@@ -329,6 +341,14 @@ export function createApp() {
         reply.length > 1600 ? reply.slice(0, 1597) + "..." : reply,
       );
     } catch (err) {
+      if (isProviderTimeoutError(err)) {
+        twiml.message(
+          "I'm taking a bit longer than expected. Please try again in a moment.",
+        );
+        res.type("text/xml").send(twiml.toString());
+        return;
+      }
+
       console.error("All providers failed:", err);
       twiml.message("Something went wrong. Please try again.");
     }

@@ -107,6 +107,11 @@ Optional fallback and integration keys:
 Server config:
 
 - `PORT` (default: `1807`)
+- `SHUTDOWN_GRACE_MS` (default: `10000`): max wait for graceful shutdown before forced exit.
+
+Provider timeout config:
+
+- `PROVIDER_TIMEOUT_MS` (default: `15000`): timeout applied to each upstream provider call.
 
 CORS and proxy config:
 
@@ -135,6 +140,7 @@ Notes:
 - OpenAI fallback is enabled only when `OPENAI_API_KEY` is set and `FALLBACK_ENABLED` is not `false`.
 - Fallback configuration is evaluated at process startup. Restart the server after changing related env vars.
 - Session cleanup is in-memory only. Restarts clear all sessions.
+- Provider timeout and shutdown settings are read at process startup. Restart after changing them.
 
 ## Deployment
 
@@ -199,6 +205,12 @@ curl https://<machine>.<tailnet>.ts.net/health
 - SMS smoke test: send Twilio test message to webhook
 - Optional memory tuning: adjust `SESSION_TTL_MS` and `SESSION_CLEANUP_INTERVAL_MS` for expected traffic patterns
 
+### Graceful shutdown
+
+- Service handles `SIGTERM` and `SIGINT` in `src/index.ts` and closes the HTTP server gracefully.
+- During shutdown, the server stops accepting new connections.
+- If shutdown exceeds `SHUTDOWN_GRACE_MS`, process exits to avoid hanging indefinitely.
+
 ### Rate limit tuning
 
 - If users see frequent `429`, raise `RATE_LIMIT_SESSION_MAX` first.
@@ -238,6 +250,19 @@ Checks:
 4. Verify OpenAI model access for `gpt-4o`.
 
 If fallback is disabled or misconfigured, Anthropic failures return a generic `500` error for web and a generic failure SMS response.
+
+### Provider timeouts
+
+Symptoms:
+
+- Web chat returns `504` with a friendly timeout message.
+- SMS returns a friendly timeout response instead of hanging.
+
+Checks:
+
+1. Confirm network egress and provider API status.
+2. Increase `PROVIDER_TIMEOUT_MS` if upstream latency is consistently high.
+3. Validate fallback behavior by checking provider logs (`anthropic` vs `openai`).
 
 ### Unexpected `429` responses
 

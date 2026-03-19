@@ -17,6 +17,30 @@ export interface ChatResult {
   tokens?: TokenUsage;
 }
 
+export class ProviderTimeoutError extends Error {
+  provider: "anthropic" | "openai";
+
+  constructor(provider: "anthropic" | "openai", timeoutMs: number) {
+    super(`Provider '${provider}' timed out after ${timeoutMs}ms`);
+    this.name = "ProviderTimeoutError";
+    this.provider = provider;
+  }
+}
+
+export function isProviderTimeoutError(error: unknown): boolean {
+  return error instanceof ProviderTimeoutError;
+}
+
+function parsePositiveInt(value: string | undefined, fallback: number): number {
+  const parsed = Number.parseInt(value ?? "", 10);
+  if (!Number.isNaN(parsed) && parsed > 0) {
+    return parsed;
+  }
+  return fallback;
+}
+
+const PROVIDER_TIMEOUT_MS = parsePositiveInt(process.env.PROVIDER_TIMEOUT_MS, 15000);
+
 const FALLBACK_ENABLED =
   process.env.FALLBACK_ENABLED !== "false" && !!process.env.OPENAI_API_KEY;
 
@@ -37,16 +61,40 @@ interface ProviderResult {
   tokens?: TokenUsage;
 }
 
+async function withTimeout<T>(
+  promise: Promise<T>,
+  provider: "anthropic" | "openai",
+): Promise<T> {
+  let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        timeoutHandle = setTimeout(() => {
+          reject(new ProviderTimeoutError(provider, PROVIDER_TIMEOUT_MS));
+        }, PROVIDER_TIMEOUT_MS);
+      }),
+    ]);
+  } finally {
+    if (timeoutHandle) {
+      clearTimeout(timeoutHandle);
+    }
+  }
+}
+
 async function callAnthropic(
   systemPrompt: string,
   messages: ChatMessage[],
 ): Promise<ProviderResult> {
-  const response = await anthropic.messages.create({
-    model: "claude-sonnet-4-5",
-    max_tokens: 1024,
-    system: systemPrompt,
-    messages,
-  });
+  const response = await withTimeout(
+    anthropic.messages.create({
+      model: "claude-sonnet-4-5",
+      max_tokens: 1024,
+      system: systemPrompt,
+      messages,
+    }),
+    "anthropic",
+  );
 
   const reply =
     response.content[0].type === "text" ? response.content[0].text : "";
@@ -65,14 +113,17 @@ async function callOpenAI(
     throw new Error("OpenAI fallback is not configured");
   }
 
-  const response = await openai.chat.completions.create({
-    model: "gpt-4o",
-    max_tokens: 1024,
-    messages: [
-      { role: "system", content: systemPrompt },
-      ...messages,
-    ],
-  });
+  const response = await withTimeout(
+    openai.chat.completions.create({
+      model: "gpt-4o",
+      max_tokens: 1024,
+      messages: [
+        { role: "system", content: systemPrompt },
+        ...messages,
+      ],
+    }),
+    "openai",
+  );
 
   const reply = response.choices[0]?.message?.content ?? "";
   const tokens: TokenUsage | undefined = response.usage
