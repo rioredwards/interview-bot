@@ -2,6 +2,7 @@ import express, { type NextFunction, type Request, type Response } from "express
 import cors from "cors";
 import rateLimit, { type Store as RateLimitStore } from "express-rate-limit";
 import helmet from "helmet";
+import crypto from "crypto";
 import { RedisStore } from "rate-limit-redis";
 import { createClient } from "redis";
 import twilio from "twilio";
@@ -50,6 +51,14 @@ function parsePositiveInt(value: string | undefined, fallback: number): number {
 interface ConversationSession {
   messages: ChatMessage[];
   lastActivityAt: number;
+}
+
+interface RequestWithRequestId extends Request {
+  requestId?: string;
+}
+
+function getRequestId(req: Request): string {
+  return (req as RequestWithRequestId).requestId ?? "unknown";
 }
 
 async function connectRedisWithTimeout(url: string, timeoutMs: number) {
@@ -107,6 +116,17 @@ export async function createApp() {
 
   app.set("trust proxy", trustProxy);
   app.use(helmet());
+
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    const incoming = req.header("x-request-id");
+    const requestId =
+      typeof incoming === "string" && incoming.trim() !== ""
+        ? incoming.trim()
+        : crypto.randomUUID();
+    (req as RequestWithRequestId).requestId = requestId;
+    res.setHeader("x-request-id", requestId);
+    next();
+  });
 
   app.use(
     cors({
@@ -187,6 +207,7 @@ export async function createApp() {
     message: rateLimitMessage,
     handler: (req: Request, res: Response) => {
       logRateLimit({
+        requestId: getRequestId(req),
         ip: req.ip ?? "unknown",
         limiter: "ip",
         sessionId: (req.body as { sessionId?: string })?.sessionId,
@@ -208,6 +229,7 @@ export async function createApp() {
     validate: false,
     handler: (req: Request, res: Response) => {
       logRateLimit({
+        requestId: getRequestId(req),
         ip: req.ip ?? "unknown",
         limiter: "session",
         sessionId: (req.body as { sessionId?: string })?.sessionId,
@@ -300,6 +322,7 @@ export async function createApp() {
         });
         logRequest({
           event: "chat_request",
+          requestId: getRequestId(req),
           sessionId,
           ip: req.ip ?? "unknown",
           provider: "faq",
@@ -318,6 +341,7 @@ export async function createApp() {
         session.messages.push({ role: "assistant", content: reply });
         logRequest({
           event: "chat_request",
+          requestId: getRequestId(req),
           sessionId,
           ip: req.ip ?? "unknown",
           provider,
@@ -373,6 +397,7 @@ export async function createApp() {
       session.messages.push({ role: "assistant", content: faq.reply });
       logRequest({
         event: "sms_request",
+        requestId: getRequestId(req),
         sessionId: from,
         ip: req.ip ?? "unknown",
         provider: "faq",
@@ -396,6 +421,7 @@ export async function createApp() {
       session.messages.push({ role: "assistant", content: reply });
       logRequest({
         event: "sms_request",
+        requestId: getRequestId(req),
         sessionId: from,
         ip: req.ip ?? "unknown",
         provider,

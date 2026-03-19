@@ -58,6 +58,18 @@ describe("routes", () => {
       expect(res.status).toBe(200);
       expect(res.body).toEqual({ status: "ok" });
     });
+
+    it("returns x-request-id response header", async () => {
+      const res = await request(app).get("/health");
+      expect(res.headers["x-request-id"]).toBeDefined();
+    });
+
+    it("echoes inbound x-request-id header", async () => {
+      const res = await request(app)
+        .get("/health")
+        .set("x-request-id", "req-from-client");
+      expect(res.headers["x-request-id"]).toBe("req-from-client");
+    });
   });
 
   describe("CORS and proxy config", () => {
@@ -203,6 +215,7 @@ describe("routes", () => {
       expect(mockLogRequest).toHaveBeenCalledWith(
         expect.objectContaining({
           event: "chat_request",
+          requestId: expect.any(String),
           sessionId: "log-test",
           provider: "faq",
           faqIntent: "greeting",
@@ -553,6 +566,7 @@ describe("routes", () => {
 
       expect(mockLogRateLimit).toHaveBeenCalledWith(
         expect.objectContaining({
+          requestId: expect.any(String),
           limiter: "session",
           sessionId: "rate-log",
         }),

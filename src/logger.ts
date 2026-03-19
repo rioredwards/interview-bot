@@ -6,6 +6,7 @@ export type Provider = "faq" | "anthropic" | "openai";
 interface RequestLogEntry {
   event: "chat_request" | "sms_request";
   timestamp: string;
+  requestId: string;
   sessionId: string;
   ipHash: string;
   provider: Provider;
@@ -17,6 +18,7 @@ interface RequestLogEntry {
 interface RateLimitLogEntry {
   event: "rate_limited";
   timestamp: string;
+  requestId: string;
   ipHash: string;
   limiter: "ip" | "session";
   sessionId?: string;
@@ -35,6 +37,7 @@ function emit(entry: LogEntry): void {
 
 export function logRequest(opts: {
   event: "chat_request" | "sms_request";
+  requestId: string;
   sessionId: string;
   ip: string;
   provider: Provider;
@@ -45,6 +48,7 @@ export function logRequest(opts: {
   const entry: RequestLogEntry = {
     event: opts.event,
     timestamp: new Date().toISOString(),
+    requestId: opts.requestId,
     sessionId: opts.sessionId,
     ipHash: hashIp(opts.ip),
     provider: opts.provider,
@@ -56,6 +60,7 @@ export function logRequest(opts: {
 }
 
 export function logRateLimit(opts: {
+  requestId: string;
   ip: string;
   limiter: "ip" | "session";
   sessionId?: string;
@@ -63,6 +68,7 @@ export function logRateLimit(opts: {
   emit({
     event: "rate_limited",
     timestamp: new Date().toISOString(),
+    requestId: opts.requestId,
     ipHash: hashIp(opts.ip),
     limiter: opts.limiter,
     sessionId: opts.sessionId,

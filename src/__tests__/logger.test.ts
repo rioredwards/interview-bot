@@ -18,6 +18,7 @@ describe("logger", () => {
     it("emits valid JSON with required fields", () => {
       logRequest({
         event: "chat_request",
+        requestId: "req-1",
         sessionId: "test-123",
         ip: "192.168.1.1",
         provider: "anthropic",
@@ -26,6 +27,7 @@ describe("logger", () => {
 
       const log = getLastLog();
       expect(log.event).toBe("chat_request");
+      expect(log.requestId).toBe("req-1");
       expect(log.sessionId).toBe("test-123");
       expect(log.provider).toBe("anthropic");
       expect(log.durationMs).toBe(500);
@@ -36,6 +38,7 @@ describe("logger", () => {
     it("hashes IP addresses (never raw IP in output)", () => {
       logRequest({
         event: "chat_request",
+        requestId: "req-2",
         sessionId: "test",
         ip: "192.168.1.1",
         provider: "faq",
@@ -52,6 +55,7 @@ describe("logger", () => {
     it("produces deterministic hashes for the same IP", () => {
       logRequest({
         event: "chat_request",
+        requestId: "req-3",
         sessionId: "a",
         ip: "10.0.0.1",
         provider: "faq",
@@ -61,6 +65,7 @@ describe("logger", () => {
 
       logRequest({
         event: "chat_request",
+        requestId: "req-4",
         sessionId: "b",
         ip: "10.0.0.1",
         provider: "faq",
@@ -74,6 +79,7 @@ describe("logger", () => {
     it("produces different hashes for different IPs", () => {
       logRequest({
         event: "chat_request",
+        requestId: "req-5",
         sessionId: "a",
         ip: "10.0.0.1",
         provider: "faq",
@@ -83,6 +89,7 @@ describe("logger", () => {
 
       logRequest({
         event: "chat_request",
+        requestId: "req-6",
         sessionId: "a",
         ip: "10.0.0.2",
         provider: "faq",
@@ -96,6 +103,7 @@ describe("logger", () => {
     it("emits ISO 8601 timestamp", () => {
       logRequest({
         event: "chat_request",
+        requestId: "req-7",
         sessionId: "test",
         ip: "1.2.3.4",
         provider: "faq",
@@ -110,6 +118,7 @@ describe("logger", () => {
     it("includes faqIntent when provided", () => {
       logRequest({
         event: "chat_request",
+        requestId: "req-8",
         sessionId: "test",
         ip: "1.2.3.4",
         provider: "faq",
@@ -123,6 +132,7 @@ describe("logger", () => {
     it("omits faqIntent when not provided", () => {
       logRequest({
         event: "chat_request",
+        requestId: "req-9",
         sessionId: "test",
         ip: "1.2.3.4",
         provider: "anthropic",
@@ -135,6 +145,7 @@ describe("logger", () => {
     it("includes token usage when provided", () => {
       logRequest({
         event: "chat_request",
+        requestId: "req-10",
         sessionId: "test",
         ip: "1.2.3.4",
         provider: "openai",
@@ -149,6 +160,7 @@ describe("logger", () => {
     it("omits tokens when not provided", () => {
       logRequest({
         event: "chat_request",
+        requestId: "req-11",
         sessionId: "test",
         ip: "1.2.3.4",
         provider: "faq",
@@ -161,6 +173,7 @@ describe("logger", () => {
     it("supports sms_request event", () => {
       logRequest({
         event: "sms_request",
+        requestId: "req-12",
         sessionId: "+15551234567",
         ip: "1.2.3.4",
         provider: "openai",
@@ -174,12 +187,14 @@ describe("logger", () => {
   describe("logRateLimit", () => {
     it("emits valid JSON with required fields", () => {
       logRateLimit({
+        requestId: "req-13",
         ip: "192.168.1.1",
         limiter: "ip",
       });
 
       const log = getLastLog();
       expect(log.event).toBe("rate_limited");
+      expect(log.requestId).toBe("req-13");
       expect(log.limiter).toBe("ip");
       expect(log.timestamp).toBeDefined();
       expect(log.ipHash).toBeDefined();
@@ -187,6 +202,7 @@ describe("logger", () => {
 
     it("hashes the IP address", () => {
       logRateLimit({
+        requestId: "req-14",
         ip: "10.0.0.5",
         limiter: "session",
       });
@@ -198,6 +214,7 @@ describe("logger", () => {
 
     it("includes sessionId when provided", () => {
       logRateLimit({
+        requestId: "req-15",
         ip: "1.2.3.4",
         limiter: "session",
         sessionId: "sess-abc",
@@ -207,10 +224,14 @@ describe("logger", () => {
     });
 
     it("supports both limiter types", () => {
-      logRateLimit({ ip: "1.2.3.4", limiter: "ip" });
+      logRateLimit({ requestId: "req-16", ip: "1.2.3.4", limiter: "ip" });
       expect(getLastLog().limiter).toBe("ip");
 
-      logRateLimit({ ip: "1.2.3.4", limiter: "session" });
+      logRateLimit({
+        requestId: "req-17",
+        ip: "1.2.3.4",
+        limiter: "session",
+      });
       expect(getLastLog().limiter).toBe("session");
     });
   });

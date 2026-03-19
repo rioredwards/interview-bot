@@ -193,9 +193,23 @@ curl https://<machine>.<tailnet>.ts.net/health
 ### Logging and observability
 
 - Logs are emitted as structured JSON on stdout.
+- Each request receives a `requestId` and is returned in the `x-request-id` response header.
 - Request logs include provider (`faq`, `anthropic`, `openai`) and duration.
 - LLM token usage is logged when available.
 - IPs are hashed before logging (`ipHash`) to reduce sensitive data exposure.
+
+### Uptime checks and alerts
+
+- Configure an uptime monitor against `GET /health` from at least one external region.
+- Check interval: 60 seconds.
+- Failure policy: alert after 2 consecutive failures.
+- Recovery policy: send a recovery notification after 1 successful check.
+
+Suggested alert thresholds:
+
+- `5xx` rate: warn at `> 2%` over 5 minutes, critical at `> 5%` over 5 minutes.
+- `429` rate limit spikes: warn at `> 10%` over 10 minutes, critical at `> 20%` over 10 minutes.
+- Provider fallback usage: warn when `openai` serves `> 30%` of requests for 15 minutes.
 
 ### Security headers
 
@@ -222,6 +236,13 @@ curl https://<machine>.<tailnet>.ts.net/health
 - If traffic spikes from one source IP, tune `RATE_LIMIT_IP_MAX` and window.
 - Keep windows aligned to realistic user behavior, often 15-60 minutes.
 - For multi-replica deployments, set `REDIS_URL` so limits survive app restarts and stay shared across instances.
+
+### Incident runbook
+
+- `health check failing`: verify process is running, then check startup logs for Redis/provider errors, and confirm network/path to `/health`.
+- `5xx spike`: filter logs by `requestId`, confirm whether failures come from provider timeout, provider errors, or bad input.
+- `429 spike`: inspect `rate_limited` logs by `limiter` (`ip` or `session`) and adjust limits if legitimate traffic changed.
+- `fallback surge`: if `openai` usage spikes, validate Anthropic status and credentials, then raise timeout or failover plan as needed.
 
 ### Key rotation
 
