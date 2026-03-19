@@ -50,6 +50,18 @@ const sessionLimiter = rateLimit({
   validate: false,
 });
 
+// --- Input limits ---
+const MAX_MESSAGE_LENGTH =
+  parseInt(process.env.MAX_MESSAGE_LENGTH ?? "", 10) || 1000;
+const MAX_HISTORY_TURNS =
+  parseInt(process.env.MAX_HISTORY_TURNS ?? "", 10) || 20;
+
+/** Returns the most recent turns of conversation history, capped to MAX_HISTORY_TURNS. */
+function recentHistory(history: ChatMessage[]): ChatMessage[] {
+  if (history.length <= MAX_HISTORY_TURNS) return history;
+  return history.slice(-MAX_HISTORY_TURNS);
+}
+
 // --- Conversation state ---
 const conversations: Record<string, ChatMessage[]> = {};
 const systemPrompt = getSystemPrompt();
@@ -70,6 +82,13 @@ app.post(
       return;
     }
 
+    if (message.length > MAX_MESSAGE_LENGTH) {
+      res.status(400).json({
+        error: `Message is too long. Please keep it under ${MAX_MESSAGE_LENGTH} characters.`,
+      });
+      return;
+    }
+
     if (!conversations[sessionId]) {
       conversations[sessionId] = [];
     }
@@ -78,7 +97,7 @@ app.post(
     try {
       const { reply, provider } = await sendChat(
         systemPrompt,
-        conversations[sessionId],
+        recentHistory(conversations[sessionId]),
       );
       console.log(`Chat response served by: ${provider}`);
       conversations[sessionId].push({ role: "assistant", content: reply });
@@ -105,6 +124,14 @@ app.post("/sms", async (req: Request, res: Response) => {
     return;
   }
 
+  if (body.length > MAX_MESSAGE_LENGTH) {
+    twiml.message(
+      `Message is too long. Please keep it under ${MAX_MESSAGE_LENGTH} characters.`,
+    );
+    res.type("text/xml").send(twiml.toString());
+    return;
+  }
+
   if (!conversations[from]) {
     conversations[from] = [];
   }
@@ -113,7 +140,7 @@ app.post("/sms", async (req: Request, res: Response) => {
   try {
     const { reply, provider } = await sendChat(
       systemPrompt,
-      conversations[from],
+      recentHistory(conversations[from]),
     );
     console.log(`SMS response served by: ${provider}`);
     conversations[from].push({ role: "assistant", content: reply });
