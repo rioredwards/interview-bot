@@ -24,7 +24,10 @@ const intents: FaqIntent[] = [
       "what is this",
       "whats this about",
     ],
-    keywords: [["who", "rio"], ["about", "rio"]],
+    keywords: [
+      ["who", "rio"],
+      ["about", "rio"],
+    ],
     reply:
       "Rio Edwards is a product-minded full-stack TypeScript engineer based in Portland, Oregon. " +
       "He has strong React and Next.js experience and a track record of shipping production software " +
@@ -42,7 +45,11 @@ const intents: FaqIntent[] = [
       "top projects",
       "best work",
     ],
-    keywords: [["best", "project"], ["strongest", "project"], ["top", "project"]],
+    keywords: [
+      ["best", "project"],
+      ["strongest", "project"],
+      ["top", "project"],
+    ],
     reply:
       "Rio's strongest projects are:\n\n" +
       "- **CRM Document Manager** - HIPAA-compliant document management inside HubSpot, used daily by 30+ professionals\n" +
@@ -95,7 +102,11 @@ const intents: FaqIntent[] = [
       "is he remote",
       "where is he",
     ],
-    keywords: [["where", "located"], ["where", "live"], ["where", "based"]],
+    keywords: [
+      ["where", "located"],
+      ["where", "live"],
+      ["where", "based"],
+    ],
     reply:
       "Rio is based in Portland, Oregon. He is a U.S. citizen (no sponsorship required), " +
       "open to travel, and open to relocation, including internationally.",
@@ -133,6 +144,12 @@ function normalize(text: string): string {
     .trim();
 }
 
+/** Check if a whole word exists in the text (word boundary matching). */
+function containsWord(text: string, word: string): boolean {
+  const pattern = new RegExp(`\\b${word}\\b`);
+  return pattern.test(text);
+}
+
 /**
  * Try to match a user message to a FAQ intent.
  * Returns the match if confidence is high, or null to fall through to the LLM.
@@ -147,10 +164,10 @@ export function matchFaq(message: string): FaqMatch | null {
     }
   }
 
-  // 2. Keyword match (all keywords in a group must be present)
+  // 2. Keyword match (all keywords in a group must be present as whole words)
   for (const intent of intents) {
     for (const keywordGroup of intent.keywords) {
-      if (keywordGroup.every((kw) => normalized.includes(kw))) {
+      if (keywordGroup.every((kw) => containsWord(normalized, kw))) {
         return { intent: intent.intent, reply: intent.reply };
       }
     }
