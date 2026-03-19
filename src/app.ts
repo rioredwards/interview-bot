@@ -33,10 +33,31 @@ function parseTrustProxy(value: string | undefined): boolean | number {
   return process.env.NODE_ENV === "production" ? 1 : false;
 }
 
+function parsePositiveInt(value: string | undefined, fallback: number): number {
+  const parsed = Number.parseInt(value ?? "", 10);
+  if (!Number.isNaN(parsed) && parsed > 0) {
+    return parsed;
+  }
+  return fallback;
+}
+
+interface ConversationSession {
+  messages: ChatMessage[];
+  lastActivityAt: number;
+}
+
 export function createApp() {
   const app = express();
   const allowedOrigins = parseAllowlist(process.env.CORS_ALLOWED_ORIGINS);
   const trustProxy = parseTrustProxy(process.env.TRUST_PROXY);
+  const SESSION_TTL_MS = parsePositiveInt(
+    process.env.SESSION_TTL_MS,
+    24 * 60 * 60 * 1000,
+  );
+  const SESSION_CLEANUP_INTERVAL_MS = parsePositiveInt(
+    process.env.SESSION_CLEANUP_INTERVAL_MS,
+    5 * 60 * 1000,
+  );
 
   app.set("trust proxy", trustProxy);
   app.use(helmet());
@@ -138,7 +159,39 @@ export function createApp() {
   }
 
   // --- Conversation state ---
-  const conversations: Record<string, ChatMessage[]> = {};
+  const conversations: Record<string, ConversationSession> = {};
+
+  function isExpired(session: ConversationSession, now: number): boolean {
+    return now - session.lastActivityAt > SESSION_TTL_MS;
+  }
+
+  function getSession(sessionId: string): ConversationSession {
+    const now = Date.now();
+    const existing = conversations[sessionId];
+    if (!existing || isExpired(existing, now)) {
+      conversations[sessionId] = { messages: [], lastActivityAt: now };
+      return conversations[sessionId];
+    }
+
+    existing.lastActivityAt = now;
+    return existing;
+  }
+
+  function cleanupExpiredSessions(): void {
+    const now = Date.now();
+    for (const [sessionId, session] of Object.entries(conversations)) {
+      if (isExpired(session, now)) {
+        delete conversations[sessionId];
+      }
+    }
+  }
+
+  const cleanupTimer = setInterval(
+    cleanupExpiredSessions,
+    SESSION_CLEANUP_INTERVAL_MS,
+  );
+  cleanupTimer.unref?.();
+
   const systemPrompt = getSystemPrompt();
 
   // --- Web chat endpoint ---
@@ -164,17 +217,15 @@ export function createApp() {
         return;
       }
 
-      if (!conversations[sessionId]) {
-        conversations[sessionId] = [];
-      }
-      conversations[sessionId].push({ role: "user", content: message });
+      const session = getSession(sessionId);
+      session.messages.push({ role: "user", content: message });
 
       const start = Date.now();
 
       // Try FAQ cache before calling the LLM
       const faq = matchFaq(message);
       if (faq) {
-        conversations[sessionId].push({
+        session.messages.push({
           role: "assistant",
           content: faq.reply,
         });
@@ -193,9 +244,9 @@ export function createApp() {
       try {
         const { reply, provider, tokens } = await sendChat(
           systemPrompt,
-          recentHistory(conversations[sessionId]),
+          recentHistory(session.messages),
         );
-        conversations[sessionId].push({ role: "assistant", content: reply });
+        session.messages.push({ role: "assistant", content: reply });
         logRequest({
           event: "chat_request",
           sessionId,
@@ -234,17 +285,15 @@ export function createApp() {
       return;
     }
 
-    if (!conversations[from]) {
-      conversations[from] = [];
-    }
-    conversations[from].push({ role: "user", content: body });
+    const session = getSession(from);
+    session.messages.push({ role: "user", content: body });
 
     const start = Date.now();
 
     // Try FAQ cache before calling the LLM
     const faq = matchFaq(body);
     if (faq) {
-      conversations[from].push({ role: "assistant", content: faq.reply });
+      session.messages.push({ role: "assistant", content: faq.reply });
       logRequest({
         event: "sms_request",
         sessionId: from,
@@ -265,9 +314,9 @@ export function createApp() {
     try {
       const { reply, provider, tokens } = await sendChat(
         systemPrompt,
-        recentHistory(conversations[from]),
+        recentHistory(session.messages),
       );
-      conversations[from].push({ role: "assistant", content: reply });
+      session.messages.push({ role: "assistant", content: reply });
       logRequest({
         event: "sms_request",
         sessionId: from,

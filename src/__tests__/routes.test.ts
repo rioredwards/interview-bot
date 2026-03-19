@@ -297,6 +297,46 @@ describe("routes", () => {
         content: "second",
       });
     });
+
+    it("expires stale sessions after inactivity TTL", async () => {
+      process.env.SESSION_TTL_MS = "1";
+      const ttlApp = createApp();
+      delete process.env.SESSION_TTL_MS;
+
+      const sessionId = `ttl-${Date.now()}`;
+      mockMatchFaq.mockReturnValue(null);
+      mockSendChat
+        .mockResolvedValueOnce({
+          reply: "first reply",
+          provider: "anthropic" as const,
+          tokens: { inputTokens: 10, outputTokens: 5 },
+        })
+        .mockResolvedValueOnce({
+          reply: "second reply",
+          provider: "anthropic" as const,
+          tokens: { inputTokens: 10, outputTokens: 5 },
+        });
+
+      await request(ttlApp)
+        .post("/chat")
+        .set("Content-Type", "application/json")
+        .send({ message: "first", sessionId });
+
+      await new Promise((resolve) => setTimeout(resolve, 5));
+
+      await request(ttlApp)
+        .post("/chat")
+        .set("Content-Type", "application/json")
+        .send({ message: "second", sessionId });
+
+      expect(mockSendChat).toHaveBeenCalledTimes(2);
+      const secondCallMessages = mockSendChat.mock.calls[1][1];
+      expect(secondCallMessages).toHaveLength(1);
+      expect(secondCallMessages[0]).toEqual({
+        role: "user",
+        content: "second",
+      });
+    });
   });
 
   describe("POST /sms", () => {

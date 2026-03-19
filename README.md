@@ -125,10 +125,16 @@ Input limits:
 - `MAX_MESSAGE_LENGTH` (default: `1000`)
 - `MAX_HISTORY_TURNS` (default: `20`)
 
+Session memory cleanup:
+
+- `SESSION_TTL_MS` (default: `86400000`): session expires after this inactivity window.
+- `SESSION_CLEANUP_INTERVAL_MS` (default: `300000`): cleanup sweep interval for stale sessions.
+
 Notes:
 
 - OpenAI fallback is enabled only when `OPENAI_API_KEY` is set and `FALLBACK_ENABLED` is not `false`.
 - Fallback configuration is evaluated at process startup. Restart the server after changing related env vars.
+- Session cleanup is in-memory only. Restarts clear all sessions.
 
 ## Deployment
 
@@ -191,6 +197,7 @@ curl https://<machine>.<tailnet>.ts.net/health
 - Health check: `GET /health`
 - Chat smoke test: `POST /chat` with test `sessionId`
 - SMS smoke test: send Twilio test message to webhook
+- Optional memory tuning: adjust `SESSION_TTL_MS` and `SESSION_CLEANUP_INTERVAL_MS` for expected traffic patterns
 
 ### Rate limit tuning
 
