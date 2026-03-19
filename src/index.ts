@@ -2,9 +2,9 @@ import "dotenv/config";
 import express, { type Request, type Response } from "express";
 import cors from "cors";
 import rateLimit from "express-rate-limit";
-import Anthropic from "@anthropic-ai/sdk";
 import twilio from "twilio";
 import { getSystemPrompt } from "./system-prompt.js";
+import { sendChat, type ChatMessage } from "./chat-provider.js";
 
 const app = express();
 app.use(
@@ -50,15 +50,8 @@ const sessionLimiter = rateLimit({
   validate: false,
 });
 
-// --- Anthropic client and state ---
-const client = new Anthropic();
-
-interface ConversationMessage {
-  role: "user" | "assistant";
-  content: string;
-}
-
-const conversations: Record<string, ConversationMessage[]> = {};
+// --- Conversation state ---
+const conversations: Record<string, ChatMessage[]> = {};
 const systemPrompt = getSystemPrompt();
 
 // --- Web chat endpoint ---
@@ -83,20 +76,16 @@ app.post(
     conversations[sessionId].push({ role: "user", content: message });
 
     try {
-      const response = await client.messages.create({
-        model: "claude-sonnet-4-5",
-        max_tokens: 1024,
-        system: systemPrompt,
-        messages: conversations[sessionId],
-      });
-
-      const reply =
-        response.content[0].type === "text" ? response.content[0].text : "";
+      const { reply, provider } = await sendChat(
+        systemPrompt,
+        conversations[sessionId],
+      );
+      console.log(`Chat response served by: ${provider}`);
       conversations[sessionId].push({ role: "assistant", content: reply });
 
       res.json({ reply });
     } catch (err) {
-      console.error("Anthropic error:", err);
+      console.error("All providers failed:", err);
       res
         .status(500)
         .json({ error: "Something went wrong. Please try again." });
@@ -122,20 +111,16 @@ app.post("/sms", async (req: Request, res: Response) => {
   conversations[from].push({ role: "user", content: body });
 
   try {
-    const response = await client.messages.create({
-      model: "claude-sonnet-4-5",
-      max_tokens: 1024,
-      system: systemPrompt,
-      messages: conversations[from],
-    });
-
-    const reply =
-      response.content[0].type === "text" ? response.content[0].text : "";
+    const { reply, provider } = await sendChat(
+      systemPrompt,
+      conversations[from],
+    );
+    console.log(`SMS response served by: ${provider}`);
     conversations[from].push({ role: "assistant", content: reply });
 
     twiml.message(reply.length > 1600 ? reply.slice(0, 1597) + "..." : reply);
   } catch (err) {
-    console.error("Anthropic error:", err);
+    console.error("All providers failed:", err);
     twiml.message("Something went wrong. Please try again.");
   }
 
