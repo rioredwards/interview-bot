@@ -48,6 +48,7 @@ Core files:
 
 - `POST /sms`
   - Form body from Twilio (`From`, `Body`)
+  - Disabled by default. Set `ENABLE_TWILIO_SMS=true` to enable.
   - Returns TwiML XML response
 
 ## Local Development
@@ -104,6 +105,7 @@ Optional fallback and integration keys:
 - `FALLBACK_ENABLED`: set to `false` to force-disable fallback.
 - `TWILIO_ACCOUNT_SID`: required for Twilio integration setup.
 - `TWILIO_AUTH_TOKEN`: required for Twilio integration setup.
+- `ENABLE_TWILIO_SMS`: set to `true` to enable the `/sms` endpoint. Default behavior is disabled.
 
 Server config:
 

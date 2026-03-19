@@ -48,6 +48,18 @@ function parsePositiveInt(value: string | undefined, fallback: number): number {
   return fallback;
 }
 
+function parseBoolean(value: string | undefined, fallback: boolean): boolean {
+  if (!value || value.trim() === "") {
+    return fallback;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "true") return true;
+  if (normalized === "false") return false;
+
+  return fallback;
+}
+
 interface ConversationSession {
   messages: ChatMessage[];
   lastActivityAt: number;
@@ -64,8 +76,21 @@ function getRequestId(req: Request): string {
 async function connectRedisWithTimeout(url: string, timeoutMs: number) {
   const client = createClient({ url });
 
+  let redisErrorLogged = false;
   client.on("error", (error) => {
-    console.error("Redis rate limiter client error:", error);
+    if (redisErrorLogged) {
+      return;
+    }
+    redisErrorLogged = true;
+
+    const message =
+      error instanceof Error && error.message
+        ? error.message
+        : "Unknown Redis client error";
+    console.warn(
+      `Redis rate limiter unavailable (${message}). Falling back to in-memory rate limiting. ` +
+        "This is expected in local development unless Redis is running.",
+    );
   });
 
   let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
@@ -113,6 +138,7 @@ export async function createApp() {
     2000,
   );
   const REDIS_URL = process.env.REDIS_URL?.trim();
+  const ENABLE_TWILIO_SMS = parseBoolean(process.env.ENABLE_TWILIO_SMS, false);
 
   app.set("trust proxy", trustProxy);
   app.use(helmet());
@@ -189,9 +215,13 @@ export async function createApp() {
       sessionRateLimitStore = createRedisStore(redisClient, "rl:session:");
       console.log("Rate limiting store: redis");
     } catch (error) {
-      console.error(
-        "Redis unavailable for rate limiting. Falling back to in-memory store.",
-        error,
+      const message =
+        error instanceof Error && error.message
+          ? error.message
+          : "Unknown connection error";
+      console.warn(
+        `Redis unavailable for rate limiting (${message}). Falling back to in-memory store. ` +
+          "This is expected in local development unless Redis is running.",
       );
     }
   } else {
@@ -367,85 +397,91 @@ export async function createApp() {
   );
 
   // --- SMS endpoint (Twilio) ---
-  app.post("/sms", async (req: Request, res: Response) => {
-    const twiml = new twilio.twiml.MessagingResponse();
-    const from = (req.body as { From?: string }).From;
-    const body = (req.body as { Body?: string }).Body?.trim();
+  if (ENABLE_TWILIO_SMS) {
+    app.post("/sms", async (req: Request, res: Response) => {
+      const twiml = new twilio.twiml.MessagingResponse();
+      const from = (req.body as { From?: string }).From;
+      const body = (req.body as { Body?: string }).Body?.trim();
 
-    if (!from || !body) {
-      twiml.message("Sorry, I didn't catch that.");
-      res.type("text/xml").send(twiml.toString());
-      return;
-    }
+      if (!from || !body) {
+        twiml.message("Sorry, I didn't catch that.");
+        res.type("text/xml").send(twiml.toString());
+        return;
+      }
 
-    if (body.length > MAX_MESSAGE_LENGTH) {
-      twiml.message(
-        `Message is too long. Please keep it under ${MAX_MESSAGE_LENGTH} characters.`,
-      );
-      res.type("text/xml").send(twiml.toString());
-      return;
-    }
-
-    const session = getSession(from);
-    session.messages.push({ role: "user", content: body });
-
-    const start = Date.now();
-
-    // Try FAQ cache before calling the LLM
-    const faq = matchFaq(body);
-    if (faq) {
-      session.messages.push({ role: "assistant", content: faq.reply });
-      logRequest({
-        event: "sms_request",
-        requestId: getRequestId(req),
-        sessionId: from,
-        ip: req.ip ?? "unknown",
-        provider: "faq",
-        faqIntent: faq.intent,
-        durationMs: Date.now() - start,
-      });
-      twiml.message(
-        faq.reply.length > 1600
-          ? faq.reply.slice(0, 1597) + "..."
-          : faq.reply,
-      );
-      res.type("text/xml").send(twiml.toString());
-      return;
-    }
-
-    try {
-      const { reply, provider, tokens } = await sendChat(
-        systemPrompt,
-        recentHistory(session.messages),
-      );
-      session.messages.push({ role: "assistant", content: reply });
-      logRequest({
-        event: "sms_request",
-        requestId: getRequestId(req),
-        sessionId: from,
-        ip: req.ip ?? "unknown",
-        provider,
-        tokens,
-        durationMs: Date.now() - start,
-      });
-      twiml.message(
-        reply.length > 1600 ? reply.slice(0, 1597) + "..." : reply,
-      );
-    } catch (err) {
-      if (isProviderTimeoutError(err)) {
+      if (body.length > MAX_MESSAGE_LENGTH) {
         twiml.message(
-          "I'm taking a bit longer than expected. Please try again in a moment.",
+          `Message is too long. Please keep it under ${MAX_MESSAGE_LENGTH} characters.`,
         );
         res.type("text/xml").send(twiml.toString());
         return;
       }
 
-      console.error("All providers failed:", err);
-      twiml.message("Something went wrong. Please try again.");
-    }
+      const session = getSession(from);
+      session.messages.push({ role: "user", content: body });
 
-    res.type("text/xml").send(twiml.toString());
-  });
+      const start = Date.now();
+
+      // Try FAQ cache before calling the LLM
+      const faq = matchFaq(body);
+      if (faq) {
+        session.messages.push({ role: "assistant", content: faq.reply });
+        logRequest({
+          event: "sms_request",
+          requestId: getRequestId(req),
+          sessionId: from,
+          ip: req.ip ?? "unknown",
+          provider: "faq",
+          faqIntent: faq.intent,
+          durationMs: Date.now() - start,
+        });
+        twiml.message(
+          faq.reply.length > 1600
+            ? faq.reply.slice(0, 1597) + "..."
+            : faq.reply,
+        );
+        res.type("text/xml").send(twiml.toString());
+        return;
+      }
+
+      try {
+        const { reply, provider, tokens } = await sendChat(
+          systemPrompt,
+          recentHistory(session.messages),
+        );
+        session.messages.push({ role: "assistant", content: reply });
+        logRequest({
+          event: "sms_request",
+          requestId: getRequestId(req),
+          sessionId: from,
+          ip: req.ip ?? "unknown",
+          provider,
+          tokens,
+          durationMs: Date.now() - start,
+        });
+        twiml.message(
+          reply.length > 1600 ? reply.slice(0, 1597) + "..." : reply,
+        );
+      } catch (err) {
+        if (isProviderTimeoutError(err)) {
+          twiml.message(
+            "I'm taking a bit longer than expected. Please try again in a moment.",
+          );
+          res.type("text/xml").send(twiml.toString());
+          return;
+        }
+
+        console.error("All providers failed:", err);
+        twiml.message("Something went wrong. Please try again.");
+      }
+
+      res.type("text/xml").send(twiml.toString());
+    });
+  } else {
+    app.post("/sms", (_req: Request, res: Response) => {
+      res.status(404).send("Not found");
+    });
+  }
 
   // Health check
   app.get("/health", (_: Request, res: Response) => {

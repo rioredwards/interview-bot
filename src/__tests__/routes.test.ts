@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import request from "supertest";
 
 // Mock external dependencies before importing app
@@ -44,12 +44,17 @@ describe("routes", () => {
   let app: Awaited<ReturnType<typeof createApp>>;
 
   beforeEach(async () => {
+    process.env.ENABLE_TWILIO_SMS = "true";
     app = await createApp();
     mockSendChat.mockReset();
     mockIsProviderTimeoutError.mockClear();
     mockMatchFaq.mockReset();
     mockLogRequest.mockReset();
     mockLogRateLimit.mockReset();
+  });
+
+  afterEach(() => {
+    delete process.env.ENABLE_TWILIO_SMS;
   });
 
   describe("GET /health", () => {
@@ -384,6 +389,19 @@ describe("routes", () => {
   });
 
   describe("POST /sms", () => {
+    it("returns 404 when SMS endpoint is disabled", async () => {
+      delete process.env.ENABLE_TWILIO_SMS;
+      const disabledSmsApp = await createApp();
+
+      const res = await request(disabledSmsApp)
+        .post("/sms")
+        .type("form")
+        .send({ From: "+15551234567", Body: "hello" });
+
+      expect(res.status).toBe(404);
+      expect(res.text).toContain("Not found");
+    });
+
     it("returns TwiML error for missing From", async () => {
       const res = await request(app)
         .post("/sms")
