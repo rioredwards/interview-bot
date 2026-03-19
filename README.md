@@ -107,6 +107,11 @@ Server config:
 
 - `PORT` (default: `1807`)
 
+CORS and proxy config:
+
+- `CORS_ALLOWED_ORIGINS`: comma-separated HTTPS origins allowed for browser clients. If unset, only localhost origins are allowed.
+- `TRUST_PROXY`: Express `trust proxy` setting. Defaults to `1` in production and `false` outside production.
+
 Rate limiting config:
 
 - `RATE_LIMIT_IP_MAX` (default: `30`)
@@ -145,7 +150,10 @@ tailscale funnel 1807
 3. Copy the generated HTTPS URL (for example `https://<machine>.<tailnet>.ts.net`).
 4. In the portfolio frontend deployment environment, set:
    - `NEXT_PUBLIC_INTERVIEW_BOT_URL=<funnel-url>`
-5. Verify from a public network:
+5. Set API env vars on the bot host:
+   - `CORS_ALLOWED_ORIGINS=https://rioedwards.com,https://www.rioedwards.com`
+   - `TRUST_PROXY=1`
+6. Verify from a public network:
 
 ```bash
 curl https://<machine>.<tailnet>.ts.net/health
@@ -156,9 +164,11 @@ curl https://<machine>.<tailnet>.ts.net/health
 1. Set build command: `npm ci && npm run build`
 2. Set start command: `npm run start`
 3. Provide required env vars (`ANTHROPIC_API_KEY` at minimum).
-4. Set `PORT` only if your host requires a fixed value.
-5. Confirm public health endpoint returns `{ "status": "ok" }`.
-6. Point `NEXT_PUBLIC_INTERVIEW_BOT_URL` to the hosted HTTPS URL.
+4. Set `CORS_ALLOWED_ORIGINS` to your portfolio origin(s).
+5. Set `TRUST_PROXY=1` unless your host docs require a different value.
+6. Set `PORT` only if your host requires a fixed value.
+7. Confirm public health endpoint returns `{ "status": "ok" }`.
+8. Point `NEXT_PUBLIC_INTERVIEW_BOT_URL` to the hosted HTTPS URL.
 
 ## Production Operations
 

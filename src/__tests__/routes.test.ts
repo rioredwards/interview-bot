@@ -55,6 +55,66 @@ describe("routes", () => {
     });
   });
 
+  describe("CORS and proxy config", () => {
+    it("allows localhost origins by default for local development", async () => {
+      const res = await request(app)
+        .get("/health")
+        .set("Origin", "http://localhost:3000");
+
+      expect(res.status).toBe(200);
+      expect(res.headers["access-control-allow-origin"]).toBe(
+        "http://localhost:3000",
+      );
+    });
+
+    it("rejects non-allowed origins", async () => {
+      const res = await request(app)
+        .get("/health")
+        .set("Origin", "https://evil.example.com");
+
+      expect(res.status).toBe(403);
+      expect(res.body).toEqual({ error: "Origin not allowed" });
+    });
+
+    it("allows configured origins from env allowlist", async () => {
+      process.env.CORS_ALLOWED_ORIGINS =
+        "https://rioedwards.com,https://www.rioedwards.com";
+      const allowlistApp = createApp();
+      delete process.env.CORS_ALLOWED_ORIGINS;
+
+      const res = await request(allowlistApp)
+        .get("/health")
+        .set("Origin", "https://rioedwards.com");
+
+      expect(res.status).toBe(200);
+      expect(res.headers["access-control-allow-origin"]).toBe(
+        "https://rioedwards.com",
+      );
+    });
+
+    it("defaults trust proxy to false outside production", () => {
+      const proxyApp = createApp();
+      expect(proxyApp.get("trust proxy")).toBe(false);
+    });
+
+    it("uses trust proxy in production by default", () => {
+      const previousNodeEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = "production";
+      const proxyApp = createApp();
+      process.env.NODE_ENV = previousNodeEnv;
+
+      expect(proxyApp.get("trust proxy")).toBe(1);
+    });
+
+    it("supports explicit TRUST_PROXY override", () => {
+      process.env.TRUST_PROXY = "2";
+      const proxyApp = createApp();
+      delete process.env.TRUST_PROXY;
+
+      expect(proxyApp.get("trust proxy")).toBe(2);
+    });
+  });
+
   describe("POST /chat", () => {
     it("returns 400 when message is missing", async () => {
       const res = await request(app)

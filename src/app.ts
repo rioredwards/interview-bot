@@ -1,4 +1,4 @@
-import express, { type Request, type Response } from "express";
+import express, { type NextFunction, type Request, type Response } from "express";
 import cors from "cors";
 import rateLimit from "express-rate-limit";
 import twilio from "twilio";
@@ -7,11 +7,65 @@ import { sendChat, type ChatMessage } from "./chat-provider.js";
 import { matchFaq } from "./faq-router.js";
 import { logRequest, logRateLimit } from "./logger.js";
 
+function parseAllowlist(csv: string | undefined): string[] {
+  if (!csv) return [];
+  return csv
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+}
+
+function parseTrustProxy(value: string | undefined): boolean | number {
+  if (!value || value.trim() === "") {
+    return process.env.NODE_ENV === "production" ? 1 : false;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "true") return true;
+  if (normalized === "false") return false;
+
+  const numeric = Number.parseInt(normalized, 10);
+  if (!Number.isNaN(numeric) && numeric >= 0) {
+    return numeric;
+  }
+
+  return process.env.NODE_ENV === "production" ? 1 : false;
+}
+
 export function createApp() {
   const app = express();
+  const allowedOrigins = parseAllowlist(process.env.CORS_ALLOWED_ORIGINS);
+  const trustProxy = parseTrustProxy(process.env.TRUST_PROXY);
+
+  app.set("trust proxy", trustProxy);
+
   app.use(
     cors({
-      origin: true,
+      origin: (origin, callback) => {
+        if (!origin) {
+          callback(null, true);
+          return;
+        }
+
+        if (allowedOrigins.length === 0) {
+          if (
+            origin.startsWith("http://localhost:") ||
+            origin.startsWith("http://127.0.0.1:")
+          ) {
+            callback(null, true);
+            return;
+          }
+          callback(new Error("CORS_NOT_ALLOWED"));
+          return;
+        }
+
+        if (allowedOrigins.includes(origin)) {
+          callback(null, true);
+          return;
+        }
+
+        callback(new Error("CORS_NOT_ALLOWED"));
+      },
       credentials: true,
     }),
   );
@@ -234,6 +288,14 @@ export function createApp() {
   // Health check
   app.get("/health", (_: Request, res: Response) => {
     res.json({ status: "ok" });
+  });
+
+  app.use((err: Error, _: Request, res: Response, next: NextFunction) => {
+    if (err.message === "CORS_NOT_ALLOWED") {
+      res.status(403).json({ error: "Origin not allowed" });
+      return;
+    }
+    next();
   });
 
   return app;
