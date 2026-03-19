@@ -11,6 +11,7 @@ It answers questions about Rio's work using a fast FAQ matcher first, then falls
 - TypeScript (`tsx` for dev, `tsc` for build)
 - Anthropic SDK (primary provider)
 - OpenAI SDK (optional fallback provider)
+- Helmet security headers middleware
 - Twilio webhook endpoint for SMS
 - Vitest + Supertest test suite
 
@@ -178,6 +179,12 @@ curl https://<machine>.<tailnet>.ts.net/health
 - Request logs include provider (`faq`, `anthropic`, `openai`) and duration.
 - LLM token usage is logged when available.
 - IPs are hashed before logging (`ipHash`) to reduce sensitive data exposure.
+
+### Security headers
+
+- Helmet is enabled globally in `src/app.ts` to apply baseline HTTP security headers.
+- Expected headers include `x-content-type-options` and `x-frame-options` on API responses.
+- CORS behavior remains controlled by the allowlist and still supports configured portfolio origins.
 
 ### Runbook checks
 

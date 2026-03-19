@@ -1,6 +1,7 @@
 import express, { type NextFunction, type Request, type Response } from "express";
 import cors from "cors";
 import rateLimit from "express-rate-limit";
+import helmet from "helmet";
 import twilio from "twilio";
 import { getSystemPrompt } from "./system-prompt.js";
 import { sendChat, type ChatMessage } from "./chat-provider.js";
@@ -38,6 +39,7 @@ export function createApp() {
   const trustProxy = parseTrustProxy(process.env.TRUST_PROXY);
 
   app.set("trust proxy", trustProxy);
+  app.use(helmet());
 
   app.use(
     cors({

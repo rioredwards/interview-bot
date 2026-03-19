@@ -115,6 +115,24 @@ describe("routes", () => {
     });
   });
 
+  describe("security headers", () => {
+    it("sets helmet headers on /health", async () => {
+      const res = await request(app).get("/health");
+
+      expect(res.status).toBe(200);
+      expect(res.headers["x-content-type-options"]).toBe("nosniff");
+      expect(res.headers["x-frame-options"]).toBe("SAMEORIGIN");
+    });
+
+    it("sets helmet headers on /chat responses", async () => {
+      const res = await request(app).post("/chat").send({});
+
+      expect(res.status).toBe(400);
+      expect(res.headers["x-content-type-options"]).toBe("nosniff");
+      expect(res.headers["x-frame-options"]).toBe("SAMEORIGIN");
+    });
+  });
+
   describe("POST /chat", () => {
     it("returns 400 when message is missing", async () => {
       const res = await request(app)
