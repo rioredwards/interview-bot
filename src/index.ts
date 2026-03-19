@@ -95,15 +95,13 @@ app.post(
     }
     conversations[sessionId].push({ role: "user", content: message });
 
-    // Try FAQ cache first (only on the first message, or when there's no ongoing conversation)
-    if (conversations[sessionId].length <= 1) {
-      const faq = matchFaq(message);
-      if (faq) {
-        console.log(`Chat response served by: faq (${faq.intent})`);
-        conversations[sessionId].push({ role: "assistant", content: faq.reply });
-        res.json({ reply: faq.reply });
-        return;
-      }
+    // Try FAQ cache before calling the LLM
+    const faq = matchFaq(message);
+    if (faq) {
+      console.log(`Chat response served by: faq (${faq.intent})`);
+      conversations[sessionId].push({ role: "assistant", content: faq.reply });
+      res.json({ reply: faq.reply });
+      return;
     }
 
     try {
@@ -149,18 +147,16 @@ app.post("/sms", async (req: Request, res: Response) => {
   }
   conversations[from].push({ role: "user", content: body });
 
-  // Try FAQ cache first (only on the first message)
-  if (conversations[from].length <= 1) {
-    const faq = matchFaq(body);
-    if (faq) {
-      console.log(`SMS response served by: faq (${faq.intent})`);
-      conversations[from].push({ role: "assistant", content: faq.reply });
-      twiml.message(
-        faq.reply.length > 1600 ? faq.reply.slice(0, 1597) + "..." : faq.reply,
-      );
-      res.type("text/xml").send(twiml.toString());
-      return;
-    }
+  // Try FAQ cache before calling the LLM
+  const faq = matchFaq(body);
+  if (faq) {
+    console.log(`SMS response served by: faq (${faq.intent})`);
+    conversations[from].push({ role: "assistant", content: faq.reply });
+    twiml.message(
+      faq.reply.length > 1600 ? faq.reply.slice(0, 1597) + "..." : faq.reply,
+    );
+    res.type("text/xml").send(twiml.toString());
+    return;
   }
 
   try {
