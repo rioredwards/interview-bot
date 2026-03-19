@@ -14,6 +14,29 @@ interface FaqIntent {
 
 const intents: FaqIntent[] = [
   {
+    intent: "greeting",
+    phrases: [
+      "hi",
+      "hey",
+      "hello",
+      "howdy",
+      "sup",
+      "whats up",
+      "yo",
+      "hiya",
+      "hey there",
+      "hello there",
+      "hi there",
+      "good morning",
+      "good afternoon",
+      "good evening",
+    ],
+    keywords: [],
+    reply:
+      "Hey! I'm RioBot, here to help you learn about Rio Edwards and his work. " +
+      "Feel free to ask about his background, projects, skills, or anything else!",
+  },
+  {
     intent: "who_is_rio",
     phrases: [
       "who is rio",
