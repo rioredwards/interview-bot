@@ -2,19 +2,23 @@ import fs from "fs";
 import path from "path";
 
 export function getSystemPrompt(): string {
+  const promptPath = path.resolve(
+    import.meta.dirname,
+    "..",
+    "system-prompt.xml",
+  );
+
+  let prompt: string;
   try {
-    const promptPath = path.resolve(
-      import.meta.dirname,
-      "..",
-      "system-prompt.xml",
-    );
-    const prompt = fs.readFileSync(promptPath, "utf8");
-    if (!prompt) {
-      throw new Error("System prompt file is empty");
-    }
-    return prompt;
+    prompt = fs.readFileSync(promptPath, "utf8");
   } catch (error) {
-    console.error("Error reading system prompt:", error);
-    return "Something went wrong. Please try again.";
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new Error(`Failed to read system prompt at ${promptPath}: ${detail}`);
   }
+
+  if (prompt.trim() === "") {
+    throw new Error(`System prompt file is empty at ${promptPath}`);
+  }
+
+  return prompt;
 }

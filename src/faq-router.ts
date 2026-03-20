@@ -58,6 +58,58 @@ const intents: FaqIntent[] = [
       "Feel free to ask about specific projects, skills, or experience!",
   },
   {
+    intent: "work_experience",
+    phrases: [
+      "whats rios work experience",
+      "what is rios work experience",
+      "what's rio's work experience",
+      "what is rio's work experience",
+      "whats rio work experience",
+      "what is rio work experience",
+      "work experience",
+      "experience",
+      "his work experience",
+    ],
+    keywords: [
+      ["work", "experience"],
+      ["professional", "experience"],
+    ],
+    reply:
+      "Rio's recent work experience includes:\n\n" +
+      "- **Co-founder and Product Engineer at Experiential (Jul 2024 - Nov 2025)**: led client projects end-to-end from requirements and design through architecture and delivery\n" +
+      "- **Cohort Instructional Lead at Code the Dream (Sep 2024 - Jun 2025)**: taught 200+ students and delivered detailed engineering feedback\n" +
+      "- **Student Mentor at Code the Dream (Jan 2024 - Nov 2024)**: supported learners in office hours, lectures, and async mentoring\n" +
+      "- **Frontend Engineer at Code for PDX (Sep 2023 - Nov 2024)**: contributed accessible, tested UI in a civic-tech codebase\n\n" +
+      "If you want, I can break this down by role type like product engineering, frontend, teaching, or mentoring.",
+  },
+  {
+    intent: "tech_stack",
+    phrases: [
+      "whats rios tech stack",
+      "what is rios tech stack",
+      "what's rio's tech stack",
+      "what is rio's tech stack",
+      "whats his tech stack",
+      "what is his tech stack",
+      "tech stack",
+      "stack",
+      "what technologies does he use",
+    ],
+    keywords: [
+      ["tech", "stack"],
+      ["technology", "stack"],
+      ["what", "stack"],
+    ],
+    reply:
+      "Rio's core stack is **TypeScript + React/Next.js** for frontend and product work, with Node/Express on the backend.\n\n" +
+      "He also works with:\n" +
+      "- **Mobile**: React Native, Swift, SwiftUI\n" +
+      "- **Data**: PostgreSQL, Drizzle ORM, SQLite\n" +
+      "- **Infra/Cloud**: Docker, NGINX, AWS, GCP, GitHub Actions, Vercel\n" +
+      "- **Testing/Quality**: Playwright, Jest, CI/CD\n\n" +
+      "If you're hiring for a specific role, I can map this to the exact stack match.",
+  },
+  {
     intent: "strongest_projects",
     phrases: [
       "what are his best projects",
@@ -80,6 +132,29 @@ const intents: FaqIntent[] = [
       "- **Ohm on the Range** - Festival website redesign that doubled traffic with near-perfect Lighthouse scores\n" +
       "- **Digital Wellness App** - Native iOS app tracking screen time via Live Activities\n\n" +
       "Want to hear more about any of these?",
+  },
+  {
+    intent: "dogtown",
+    phrases: [
+      "tell me about dogtown",
+      "what is dogtown",
+      "whats dogtown",
+      "what's dogtown",
+      "dogtown",
+      "can you tell me about dogtown",
+    ],
+    keywords: [
+      ["about", "dogtown"],
+      ["tell", "dogtown"],
+    ],
+    reply:
+      "DogTown is a self-hosted photo-sharing app Rio built and runs in production on a Raspberry Pi 5.\n\n" +
+      "Highlights:\n" +
+      "- OAuth-based auth and full-stack TypeScript architecture\n" +
+      "- AI moderation service (DogBot) built with Python/FastAPI\n" +
+      "- Real-time system monitoring dashboard via SSE\n" +
+      "- NGINX image caching and upload processing to improve reliability\n\n" +
+      "It is one of his best examples of end-to-end ownership across product, backend, and infrastructure.",
   },
   {
     intent: "backend_experience",
@@ -161,7 +236,7 @@ const intents: FaqIntent[] = [
 function normalize(text: string): string {
   return text
     .toLowerCase()
-    .replace(/['']/g, "")
+    .replace(/[\u2018\u2019']/g, "")
     .replace(/[^\w\s]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
@@ -182,7 +257,7 @@ export function matchFaq(message: string): FaqMatch | null {
 
   // 1. Exact phrase match (highest confidence)
   for (const intent of intents) {
-    if (intent.phrases.includes(normalized)) {
+    if (intent.phrases.some((phrase) => normalize(phrase) === normalized)) {
       return { intent: intent.intent, reply: intent.reply };
     }
   }

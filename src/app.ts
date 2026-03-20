@@ -23,6 +23,31 @@ function parseAllowlist(csv: string | undefined): string[] {
     .filter(Boolean);
 }
 
+function withLocalDevOrigins(allowlist: string[]): string[] {
+  if (process.env.NODE_ENV === "production") {
+    return allowlist;
+  }
+
+  const localOrigins = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+  ];
+
+  if (allowlist.length > 0) {
+    const hasAnyLocalOrigin = allowlist.some((origin) =>
+      localOrigins.includes(origin),
+    );
+    if (!hasAnyLocalOrigin) {
+      console.warn(
+        "CORS_ALLOWED_ORIGINS does not include localhost. " +
+          "Allowing localhost origins automatically in non-production mode.",
+      );
+    }
+  }
+
+  return [...new Set([...allowlist, ...localOrigins])];
+}
+
 function parseTrustProxy(value: string | undefined): boolean | number {
   if (!value || value.trim() === "") {
     return process.env.NODE_ENV === "production" ? 1 : false;
@@ -67,6 +92,19 @@ interface ConversationSession {
 
 interface RequestWithRequestId extends Request {
   requestId?: string;
+}
+
+function sanitizeSessionId(value: unknown, maxLength: number): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  if (trimmed === "" || trimmed.length > maxLength) {
+    return null;
+  }
+
+  return trimmed;
 }
 
 function getRequestId(req: Request): string {
@@ -123,7 +161,9 @@ function createRedisStore(client: ReturnType<typeof createClient>, prefix: strin
 
 export async function createApp() {
   const app = express();
-  const allowedOrigins = parseAllowlist(process.env.CORS_ALLOWED_ORIGINS);
+  const allowedOrigins = withLocalDevOrigins(
+    parseAllowlist(process.env.CORS_ALLOWED_ORIGINS),
+  );
   const trustProxy = parseTrustProxy(process.env.TRUST_PROXY);
   const SESSION_TTL_MS = parsePositiveInt(
     process.env.SESSION_TTL_MS,
@@ -139,6 +179,14 @@ export async function createApp() {
   );
   const REDIS_URL = process.env.REDIS_URL?.trim();
   const ENABLE_TWILIO_SMS = parseBoolean(process.env.ENABLE_TWILIO_SMS, false);
+  const MAX_REQUEST_BODY_BYTES = parsePositiveInt(
+    process.env.MAX_REQUEST_BODY_BYTES,
+    16 * 1024,
+  );
+  const MAX_SESSION_ID_LENGTH = parsePositiveInt(
+    process.env.MAX_SESSION_ID_LENGTH,
+    128,
+  );
 
   app.set("trust proxy", trustProxy);
   app.use(helmet());
@@ -163,13 +211,6 @@ export async function createApp() {
         }
 
         if (allowedOrigins.length === 0) {
-          if (
-            origin.startsWith("http://localhost:") ||
-            origin.startsWith("http://127.0.0.1:")
-          ) {
-            callback(null, true);
-            return;
-          }
           callback(new Error("CORS_NOT_ALLOWED"));
           return;
         }
@@ -184,8 +225,13 @@ export async function createApp() {
       credentials: true,
     }),
   );
-  app.use(express.json());
-  app.use(express.urlencoded({ extended: false }));
+  app.use(express.json({ limit: MAX_REQUEST_BODY_BYTES }));
+  app.use(
+    express.urlencoded({
+      extended: false,
+      limit: MAX_REQUEST_BODY_BYTES,
+    }),
+  );
 
   // --- Rate limiting configuration ---
   const RATE_LIMIT_IP_MAX =
@@ -236,11 +282,15 @@ export async function createApp() {
     legacyHeaders: false,
     message: rateLimitMessage,
     handler: (req: Request, res: Response) => {
+      const sessionId = sanitizeSessionId(
+        (req.body as { sessionId?: unknown })?.sessionId,
+        MAX_SESSION_ID_LENGTH,
+      );
       logRateLimit({
         requestId: getRequestId(req),
         ip: req.ip ?? "unknown",
         limiter: "ip",
-        sessionId: (req.body as { sessionId?: string })?.sessionId,
+        sessionId: sessionId ?? undefined,
       });
       res.status(429).json(rateLimitMessage);
     },
@@ -253,16 +303,24 @@ export async function createApp() {
     standardHeaders: true,
     legacyHeaders: false,
     keyGenerator: (req: Request) => {
-      return (req.body as { sessionId?: string })?.sessionId || "unknown";
+      const sessionId = sanitizeSessionId(
+        (req.body as { sessionId?: unknown })?.sessionId,
+        MAX_SESSION_ID_LENGTH,
+      );
+      return sessionId ?? "unknown";
     },
     message: rateLimitMessage,
     validate: false,
     handler: (req: Request, res: Response) => {
+      const sessionId = sanitizeSessionId(
+        (req.body as { sessionId?: unknown })?.sessionId,
+        MAX_SESSION_ID_LENGTH,
+      );
       logRateLimit({
         requestId: getRequestId(req),
         ip: req.ip ?? "unknown",
         limiter: "session",
-        sessionId: (req.body as { sessionId?: string })?.sessionId,
+        sessionId: sessionId ?? undefined,
       });
       res.status(429).json(rateLimitMessage);
     },
@@ -273,14 +331,48 @@ export async function createApp() {
     parseInt(process.env.MAX_MESSAGE_LENGTH ?? "", 10) || 1000;
   const MAX_HISTORY_TURNS =
     parseInt(process.env.MAX_HISTORY_TURNS ?? "", 10) || 20;
-
+  const MAX_STORED_MESSAGES = parsePositiveInt(
+    process.env.MAX_STORED_MESSAGES,
+    MAX_HISTORY_TURNS * 2,
+  );
+  const MAX_ACTIVE_SESSIONS = parsePositiveInt(
+    process.env.MAX_ACTIVE_SESSIONS,
+    5000,
+  );
   /** Returns a copy of the most recent turns of conversation history, capped to MAX_HISTORY_TURNS. */
   function recentHistory(history: ChatMessage[]): ChatMessage[] {
     return history.slice(-MAX_HISTORY_TURNS);
   }
 
   // --- Conversation state ---
-  const conversations: Record<string, ConversationSession> = {};
+  const conversations = new Map<string, ConversationSession>();
+
+  function trimStoredMessages(session: ConversationSession): void {
+    if (session.messages.length <= MAX_STORED_MESSAGES) {
+      return;
+    }
+    session.messages = session.messages.slice(-MAX_STORED_MESSAGES);
+  }
+
+  function evictOldestSessionIfNeeded(): void {
+    if (conversations.size < MAX_ACTIVE_SESSIONS) {
+      return;
+    }
+
+    let oldestSessionId: string | null = null;
+    let oldestTimestamp = Number.POSITIVE_INFINITY;
+
+    for (const [sessionId, session] of conversations.entries()) {
+      if (session.lastActivityAt < oldestTimestamp) {
+        oldestTimestamp = session.lastActivityAt;
+        oldestSessionId = sessionId;
+      }
+    }
+
+    if (oldestSessionId) {
+      conversations.delete(oldestSessionId);
+    }
+  }
 
   function isExpired(session: ConversationSession, now: number): boolean {
     return now - session.lastActivityAt > SESSION_TTL_MS;
@@ -288,10 +380,18 @@ export async function createApp() {
 
   function getSession(sessionId: string): ConversationSession {
     const now = Date.now();
-    const existing = conversations[sessionId];
-    if (!existing || isExpired(existing, now)) {
-      conversations[sessionId] = { messages: [], lastActivityAt: now };
-      return conversations[sessionId];
+    const existing = conversations.get(sessionId);
+    if (!existing) {
+      evictOldestSessionIfNeeded();
+      const created = { messages: [], lastActivityAt: now };
+      conversations.set(sessionId, created);
+      return created;
+    }
+
+    if (isExpired(existing, now)) {
+      const refreshed = { messages: [], lastActivityAt: now };
+      conversations.set(sessionId, refreshed);
+      return refreshed;
     }
 
     existing.lastActivityAt = now;
@@ -300,9 +400,9 @@ export async function createApp() {
 
   function cleanupExpiredSessions(): void {
     const now = Date.now();
-    for (const [sessionId, session] of Object.entries(conversations)) {
+    for (const [sessionId, session] of conversations.entries()) {
       if (isExpired(session, now)) {
-        delete conversations[sessionId];
+        conversations.delete(sessionId);
       }
     }
   }
@@ -322,38 +422,50 @@ export async function createApp() {
     sessionLimiter,
     async (req: Request, res: Response) => {
       const { message, sessionId } = req.body as {
-        message?: string;
-        sessionId?: string;
+        message?: unknown;
+        sessionId?: unknown;
       };
+      const normalizedSessionId = sanitizeSessionId(
+        sessionId,
+        MAX_SESSION_ID_LENGTH,
+      );
 
-      if (!message || !sessionId) {
+      if (typeof message !== "string" || !normalizedSessionId) {
         res.status(400).json({ error: "message and sessionId are required" });
         return;
       }
 
-      if (message.length > MAX_MESSAGE_LENGTH) {
+      const normalizedMessage = message.trim();
+      if (normalizedMessage === "") {
+        res.status(400).json({ error: "message and sessionId are required" });
+        return;
+      }
+
+      if (normalizedMessage.length > MAX_MESSAGE_LENGTH) {
         res.status(400).json({
           error: `Message is too long. Please keep it under ${MAX_MESSAGE_LENGTH} characters.`,
         });
         return;
       }
 
-      const session = getSession(sessionId);
-      session.messages.push({ role: "user", content: message });
+      const session = getSession(normalizedSessionId);
+      session.messages.push({ role: "user", content: normalizedMessage });
+      trimStoredMessages(session);
 
       const start = Date.now();
 
       // Try FAQ cache before calling the LLM
-      const faq = matchFaq(message);
+      const faq = matchFaq(normalizedMessage);
       if (faq) {
         session.messages.push({
           role: "assistant",
           content: faq.reply,
         });
+        trimStoredMessages(session);
         logRequest({
           event: "chat_request",
           requestId: getRequestId(req),
-          sessionId,
+          sessionId: normalizedSessionId,
           ip: req.ip ?? "unknown",
           provider: "faq",
           faqIntent: faq.intent,
@@ -369,10 +481,11 @@ export async function createApp() {
           recentHistory(session.messages),
         );
         session.messages.push({ role: "assistant", content: reply });
+        trimStoredMessages(session);
         logRequest({
           event: "chat_request",
           requestId: getRequestId(req),
-          sessionId,
+          sessionId: normalizedSessionId,
           ip: req.ip ?? "unknown",
           provider,
           tokens,
@@ -419,6 +532,7 @@ export async function createApp() {
 
       const session = getSession(from);
       session.messages.push({ role: "user", content: body });
+      trimStoredMessages(session);
 
       const start = Date.now();
 
@@ -426,6 +540,7 @@ export async function createApp() {
       const faq = matchFaq(body);
       if (faq) {
         session.messages.push({ role: "assistant", content: faq.reply });
+        trimStoredMessages(session);
         logRequest({
           event: "sms_request",
           requestId: getRequestId(req),
@@ -450,6 +565,7 @@ export async function createApp() {
           recentHistory(session.messages),
         );
         session.messages.push({ role: "assistant", content: reply });
+        trimStoredMessages(session);
         logRequest({
           event: "sms_request",
           requestId: getRequestId(req),
@@ -489,6 +605,17 @@ export async function createApp() {
   });
 
   app.use((err: Error, _: Request, res: Response, next: NextFunction) => {
+    const maybeHttpError = err as Error & { status?: number; type?: string };
+    if (
+      maybeHttpError.status === 413 ||
+      maybeHttpError.type === "entity.too.large"
+    ) {
+      res.status(413).json({
+        error: `Request body is too large. Keep it under ${MAX_REQUEST_BODY_BYTES} bytes.`,
+      });
+      return;
+    }
+
     if (err.message === "CORS_NOT_ALLOWED") {
       res.status(403).json({ error: "Origin not allowed" });
       return;

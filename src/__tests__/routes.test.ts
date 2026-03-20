@@ -114,6 +114,37 @@ describe("routes", () => {
       );
     });
 
+    it("allows localhost in non-production even when allowlist is configured", async () => {
+      process.env.CORS_ALLOWED_ORIGINS = "https://rioedwards.com";
+      const allowlistApp = await createApp();
+      delete process.env.CORS_ALLOWED_ORIGINS;
+
+      const res = await request(allowlistApp)
+        .get("/health")
+        .set("Origin", "http://localhost:3000");
+
+      expect(res.status).toBe(200);
+      expect(res.headers["access-control-allow-origin"]).toBe(
+        "http://localhost:3000",
+      );
+    });
+
+    it("does not auto-allow localhost in production when allowlist is configured", async () => {
+      const previousNodeEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = "production";
+      process.env.CORS_ALLOWED_ORIGINS = "https://rioedwards.com";
+      const allowlistApp = await createApp();
+      process.env.NODE_ENV = previousNodeEnv;
+      delete process.env.CORS_ALLOWED_ORIGINS;
+
+      const res = await request(allowlistApp)
+        .get("/health")
+        .set("Origin", "http://localhost:3000");
+
+      expect(res.status).toBe(403);
+      expect(res.body).toEqual({ error: "Origin not allowed" });
+    });
+
     it("defaults trust proxy to false outside production", async () => {
       const proxyApp = await createApp();
       expect(proxyApp.get("trust proxy")).toBe(false);
@@ -183,6 +214,27 @@ describe("routes", () => {
       expect(res.body.error).toContain("message and sessionId are required");
     });
 
+    it("returns 400 when message is whitespace only", async () => {
+      const res = await request(app)
+        .post("/chat")
+        .send({ message: "   ", sessionId: "test" });
+      expect(res.status).toBe(400);
+      expect(res.body.error).toContain("message and sessionId are required");
+    });
+
+    it("returns 400 when sessionId exceeds max length", async () => {
+      process.env.MAX_SESSION_ID_LENGTH = "8";
+      const limitedSessionIdApp = await createApp();
+      delete process.env.MAX_SESSION_ID_LENGTH;
+
+      const res = await request(limitedSessionIdApp)
+        .post("/chat")
+        .send({ message: "hello", sessionId: "too-long-id" });
+
+      expect(res.status).toBe(400);
+      expect(res.body.error).toContain("message and sessionId are required");
+    });
+
     it("returns 400 when message is too long", async () => {
       const longMessage = "x".repeat(1001);
       const res = await request(app)
@@ -190,6 +242,23 @@ describe("routes", () => {
         .send({ message: longMessage, sessionId: "test" });
       expect(res.status).toBe(400);
       expect(res.body.error).toContain("too long");
+    });
+
+    it("returns 413 when JSON body exceeds parser limit", async () => {
+      process.env.MAX_REQUEST_BODY_BYTES = "1024";
+      const limitedBodyApp = await createApp();
+      delete process.env.MAX_REQUEST_BODY_BYTES;
+
+      const res = await request(limitedBodyApp)
+        .post("/chat")
+        .send({
+          message: "hello",
+          sessionId: "body-limit",
+          filler: "x".repeat(5000),
+        });
+
+      expect(res.status).toBe(413);
+      expect(res.body.error).toContain("Request body is too large");
     });
 
     it("returns FAQ reply without calling LLM", async () => {
@@ -384,6 +453,42 @@ describe("routes", () => {
       expect(secondCallMessages[0]).toEqual({
         role: "user",
         content: "second",
+      });
+    });
+
+    it("evicts oldest sessions when active session limit is reached", async () => {
+      process.env.MAX_ACTIVE_SESSIONS = "1";
+      const cappedSessionsApp = await createApp();
+      delete process.env.MAX_ACTIVE_SESSIONS;
+
+      mockMatchFaq.mockReturnValue(null);
+      mockSendChat.mockResolvedValue({
+        reply: "ok",
+        provider: "anthropic",
+        tokens: { inputTokens: 1, outputTokens: 1 },
+      });
+
+      await request(cappedSessionsApp)
+        .post("/chat")
+        .set("Content-Type", "application/json")
+        .send({ message: "first", sessionId: "session-a" });
+
+      await request(cappedSessionsApp)
+        .post("/chat")
+        .set("Content-Type", "application/json")
+        .send({ message: "second", sessionId: "session-b" });
+
+      await request(cappedSessionsApp)
+        .post("/chat")
+        .set("Content-Type", "application/json")
+        .send({ message: "third", sessionId: "session-a" });
+
+      expect(mockSendChat).toHaveBeenCalledTimes(3);
+      const thirdCallMessages = mockSendChat.mock.calls[2][1];
+      expect(thirdCallMessages).toHaveLength(1);
+      expect(thirdCallMessages[0]).toEqual({
+        role: "user",
+        content: "third",
       });
     });
   });

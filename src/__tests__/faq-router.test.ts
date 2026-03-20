@@ -66,6 +66,66 @@ describe("faq-router", () => {
     });
   });
 
+  describe("work_experience intent", () => {
+    it.each([
+      "What's Rio's work experience?",
+      "what is rio's work experience",
+      "work experience",
+    ])("matches phrase: %s", (msg) => {
+      const result = matchFaq(msg);
+      expect(result).not.toBeNull();
+      expect(result!.intent).toBe("work_experience");
+    });
+
+    it("matches via keywords", () => {
+      const result = matchFaq("professional experience summary");
+      expect(result).not.toBeNull();
+      expect(result!.intent).toBe("work_experience");
+    });
+  });
+
+  describe("tech_stack intent", () => {
+    it.each([
+      "What's Rio's tech stack?",
+      "what is his tech stack",
+      "tech stack",
+    ])("matches phrase: %s", (msg) => {
+      const result = matchFaq(msg);
+      expect(result).not.toBeNull();
+      expect(result!.intent).toBe("tech_stack");
+    });
+
+    it("matches via keywords", () => {
+      const result = matchFaq("what stack does he use");
+      expect(result).not.toBeNull();
+      expect(result!.intent).toBe("tech_stack");
+    });
+
+    it("matches smart-quote suggestion text", () => {
+      const result = matchFaq("What’s Rio’s tech stack?");
+      expect(result).not.toBeNull();
+      expect(result!.intent).toBe("tech_stack");
+    });
+  });
+
+  describe("dogtown intent", () => {
+    it.each([
+      "Tell me about DogTown",
+      "what is dogtown",
+      "dogtown",
+    ])("matches phrase: %s", (msg) => {
+      const result = matchFaq(msg);
+      expect(result).not.toBeNull();
+      expect(result!.intent).toBe("dogtown");
+    });
+
+    it("matches via keywords", () => {
+      const result = matchFaq("can you tell me about dogtown please");
+      expect(result).not.toBeNull();
+      expect(result!.intent).toBe("dogtown");
+    });
+  });
+
   describe("backend_experience intent", () => {
     it.each([
       "does he do backend",

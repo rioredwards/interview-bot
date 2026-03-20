@@ -121,6 +121,10 @@ CORS and proxy config:
 - `CORS_ALLOWED_ORIGINS`: comma-separated HTTPS origins allowed for browser clients. If unset, only localhost origins are allowed.
 - `TRUST_PROXY`: Express `trust proxy` setting. Defaults to `1` in production and `false` outside production.
 
+Local CORS note:
+
+- In non-production environments, localhost origins are allowed automatically, even when `CORS_ALLOWED_ORIGINS` is set.
+
 Rate limiting config:
 
 - `RATE_LIMIT_IP_MAX` (default: `30`)
@@ -134,6 +138,10 @@ Input limits:
 
 - `MAX_MESSAGE_LENGTH` (default: `1000`)
 - `MAX_HISTORY_TURNS` (default: `20`)
+- `MAX_STORED_MESSAGES` (default: `2 * MAX_HISTORY_TURNS`): hard cap for in-memory messages stored per session.
+- `MAX_SESSION_ID_LENGTH` (default: `128`): maximum accepted `sessionId` length.
+- `MAX_ACTIVE_SESSIONS` (default: `5000`): maximum in-memory sessions before least-recently-active eviction.
+- `MAX_REQUEST_BODY_BYTES` (default: `16384`): maximum HTTP request body size.
 
 Session memory cleanup:
 
@@ -145,8 +153,10 @@ Notes:
 - OpenAI fallback is enabled only when `OPENAI_API_KEY` is set and `FALLBACK_ENABLED` is not `false`.
 - Fallback configuration is evaluated at process startup. Restart the server after changing related env vars.
 - Session cleanup is in-memory only. Restarts clear all sessions.
+- In-memory session storage is bounded by `MAX_STORED_MESSAGES` and `MAX_ACTIVE_SESSIONS`.
 - Provider timeout and shutdown settings are read at process startup. Restart after changing them.
 - Rate limiter uses Redis when `REDIS_URL` is available. If Redis is unavailable at startup, limiter falls back to in-memory mode.
+- Server startup fails fast if `system-prompt.xml` is missing or empty.
 
 ## Deployment
 
