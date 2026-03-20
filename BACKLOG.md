@@ -2,16 +2,16 @@
 
 ## Open (Priority Order)
 
-- [ ] **Flesh out the system prompt** (portfolio issue #62)
-  - `system-prompt.xml` still has some thin/placeholder sections
-  - Read from `~/Documents/Career` to fill in real project details, skills, salary range, etc.
-  - The XML structure is solid; just needs real content
+_(No open items.)_
 
-- [ ] **Expose for production via Tailscale Funnel** (portfolio issue #63)
-  - Run: `tailscale funnel 1807`
-  - Get the public URL (e.g. `https://rios-mac-mini.tail112424.ts.net`)
-  - Set `NEXT_PUBLIC_INTERVIEW_BOT_URL` in Vercel env vars for the portfolio
-  - Without this, the widget is broken on the live site
+## Done
+
+- [x] **Flesh out the system prompt** (portfolio issue #62)
+  - `system-prompt.xml` is now comprehensive (486 lines) with real project details, skills, work history, testimonials, and visitor guidance.
+
+- [x] **Expose for production via Tailscale Funnel** (portfolio issue #63)
+  - Production runs via `tailscale funnel 1807` on Mac mini.
+  - Portfolio frontend points to the Funnel URL via `NEXT_PUBLIC_INTERVIEW_BOT_URL`.
 
 ## Notes
 

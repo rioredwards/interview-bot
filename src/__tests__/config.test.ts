@@ -10,7 +10,7 @@ describe("loadConfig", () => {
   describe("defaults", () => {
     it("applies default values when env is empty", () => {
       const config = loadConfig(env());
-      expect(config.PORT).toBe(3333);
+      expect(config.PORT).toBe(1807);
       expect(config.SHUTDOWN_GRACE_MS).toBe(10000);
       expect(config.MAX_MESSAGE_LENGTH).toBe(1000);
       expect(config.MAX_HISTORY_TURNS).toBe(20);
@@ -35,13 +35,13 @@ describe("loadConfig", () => {
 
     it("falls back to default for invalid numeric strings", () => {
       const config = loadConfig(env({ PORT: "not-a-number", MAX_HISTORY_TURNS: "-5" }));
-      expect(config.PORT).toBe(3333);
+      expect(config.PORT).toBe(1807);
       expect(config.MAX_HISTORY_TURNS).toBe(20);
     });
 
     it("falls back to default for zero values", () => {
       const config = loadConfig(env({ PORT: "0" }));
-      expect(config.PORT).toBe(3333);
+      expect(config.PORT).toBe(1807);
     });
   });
 

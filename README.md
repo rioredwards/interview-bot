@@ -24,8 +24,8 @@ Request flow:
 2. Input validation and rate limiting run first.
 3. `faq-router.ts` tries an intent match for common questions.
 4. If FAQ hits, response returns immediately without calling an LLM.
-5. If FAQ misses, `chat-provider.ts` calls Anthropic.
-6. If Anthropic fails and fallback is enabled, request retries with OpenAI.
+5. If FAQ misses, `chat-provider.ts` calls Anthropic (`claude-sonnet-4-5`, max 1024 tokens).
+6. If Anthropic fails and fallback is enabled, request retries with OpenAI (`gpt-4o`, max 1024 tokens).
 7. Structured JSON logs are emitted for request, token usage, and rate limit events.
 
 Core files:
@@ -109,7 +109,7 @@ Optional fallback and integration keys:
 
 Server config:
 
-- `PORT` (default: `1807`)
+- `PORT` (default: `1807`, "ibot" in l33t)
 - `SHUTDOWN_GRACE_MS` (default: `10000`): max wait for graceful shutdown before forced exit.
 
 Provider timeout config:

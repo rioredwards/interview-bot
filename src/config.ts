@@ -62,7 +62,7 @@ function trustProxy(nodeEnv: string | undefined) {
 function buildSchema(nodeEnv: string | undefined) {
   return z.object({
     NODE_ENV: z.string().optional().default("development"),
-    PORT: positiveInt(3333),
+    PORT: positiveInt(1807), // "ibot" in l33t
     SHUTDOWN_GRACE_MS: positiveInt(10000),
 
     // CORS
