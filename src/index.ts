@@ -1,20 +1,12 @@
 import "dotenv/config";
 import { createApp } from "./app.js";
+import { loadConfig } from "./config.js";
 
-function parsePositiveInt(value: string | undefined, fallback: number): number {
-  const parsed = Number.parseInt(value ?? "", 10);
-  if (!Number.isNaN(parsed) && parsed > 0) {
-    return parsed;
-  }
-  return fallback;
-}
-
+const config = loadConfig();
 const app = await createApp();
 
-const PORT = process.env.PORT || 3333;
-const SHUTDOWN_GRACE_MS = parsePositiveInt(process.env.SHUTDOWN_GRACE_MS, 10000);
-const server = app.listen(PORT, () =>
-  console.log(`Interview bot listening on port ${PORT}`),
+const server = app.listen(config.PORT, () =>
+  console.log(`Interview bot listening on port ${config.PORT}`),
 );
 
 let isShuttingDown = false;
@@ -43,10 +35,10 @@ function shutdown(signal: "SIGTERM" | "SIGINT"): void {
 
   const forceShutdownTimer = setTimeout(() => {
     console.error(
-      `Graceful shutdown exceeded ${SHUTDOWN_GRACE_MS}ms. Forcing exit.`,
+      `Graceful shutdown exceeded ${config.SHUTDOWN_GRACE_MS}ms. Forcing exit.`,
     );
     process.exit(1);
-  }, SHUTDOWN_GRACE_MS);
+  }, config.SHUTDOWN_GRACE_MS);
   forceShutdownTimer.unref();
 }
 

@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
+import { loadConfig } from "./config.js";
 
 export interface ChatMessage {
   role: "user" | "assistant";
@@ -31,23 +32,15 @@ export function isProviderTimeoutError(error: unknown): boolean {
   return error instanceof ProviderTimeoutError;
 }
 
-function parsePositiveInt(value: string | undefined, fallback: number): number {
-  const parsed = Number.parseInt(value ?? "", 10);
-  if (!Number.isNaN(parsed) && parsed > 0) {
-    return parsed;
-  }
-  return fallback;
-}
+const config = loadConfig();
 
-const PROVIDER_TIMEOUT_MS = parsePositiveInt(process.env.PROVIDER_TIMEOUT_MS, 15000);
-
-const FALLBACK_ENABLED =
-  process.env.FALLBACK_ENABLED !== "false" && !!process.env.OPENAI_API_KEY;
+const PROVIDER_TIMEOUT_MS = config.PROVIDER_TIMEOUT_MS;
+const FALLBACK_ENABLED = config.FALLBACK_ENABLED;
 
 const anthropic = new Anthropic();
 
 const openai = FALLBACK_ENABLED
-  ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+  ? new OpenAI({ apiKey: config.OPENAI_API_KEY })
   : null;
 
 if (FALLBACK_ENABLED) {

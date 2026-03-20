@@ -14,17 +14,11 @@ import {
 } from "./chat-provider.js";
 import { matchFaq } from "./faq-router.js";
 import { logRequest, logRateLimit } from "./logger.js";
+import { loadConfig } from "./config.js";
+import { chatRequestSchema, smsRequestSchema } from "./schemas.js";
 
-function parseAllowlist(csv: string | undefined): string[] {
-  if (!csv) return [];
-  return csv
-    .split(",")
-    .map((origin) => origin.trim())
-    .filter(Boolean);
-}
-
-function withLocalDevOrigins(allowlist: string[]): string[] {
-  if (process.env.NODE_ENV === "production") {
+function withLocalDevOrigins(allowlist: string[], nodeEnv: string): string[] {
+  if (nodeEnv === "production") {
     return allowlist;
   }
 
@@ -46,43 +40,6 @@ function withLocalDevOrigins(allowlist: string[]): string[] {
   }
 
   return [...new Set([...allowlist, ...localOrigins])];
-}
-
-function parseTrustProxy(value: string | undefined): boolean | number {
-  if (!value || value.trim() === "") {
-    return process.env.NODE_ENV === "production" ? 1 : false;
-  }
-
-  const normalized = value.trim().toLowerCase();
-  if (normalized === "true") return true;
-  if (normalized === "false") return false;
-
-  const numeric = Number.parseInt(normalized, 10);
-  if (!Number.isNaN(numeric) && numeric >= 0) {
-    return numeric;
-  }
-
-  return process.env.NODE_ENV === "production" ? 1 : false;
-}
-
-function parsePositiveInt(value: string | undefined, fallback: number): number {
-  const parsed = Number.parseInt(value ?? "", 10);
-  if (!Number.isNaN(parsed) && parsed > 0) {
-    return parsed;
-  }
-  return fallback;
-}
-
-function parseBoolean(value: string | undefined, fallback: boolean): boolean {
-  if (!value || value.trim() === "") {
-    return fallback;
-  }
-
-  const normalized = value.trim().toLowerCase();
-  if (normalized === "true") return true;
-  if (normalized === "false") return false;
-
-  return fallback;
 }
 
 interface ConversationSession {
@@ -160,35 +117,14 @@ function createRedisStore(client: ReturnType<typeof createClient>, prefix: strin
 }
 
 export async function createApp() {
+  const config = loadConfig();
   const app = express();
   const allowedOrigins = withLocalDevOrigins(
-    parseAllowlist(process.env.CORS_ALLOWED_ORIGINS),
-  );
-  const trustProxy = parseTrustProxy(process.env.TRUST_PROXY);
-  const SESSION_TTL_MS = parsePositiveInt(
-    process.env.SESSION_TTL_MS,
-    24 * 60 * 60 * 1000,
-  );
-  const SESSION_CLEANUP_INTERVAL_MS = parsePositiveInt(
-    process.env.SESSION_CLEANUP_INTERVAL_MS,
-    5 * 60 * 1000,
-  );
-  const REDIS_CONNECT_TIMEOUT_MS = parsePositiveInt(
-    process.env.REDIS_CONNECT_TIMEOUT_MS,
-    2000,
-  );
-  const REDIS_URL = process.env.REDIS_URL?.trim();
-  const ENABLE_TWILIO_SMS = parseBoolean(process.env.ENABLE_TWILIO_SMS, false);
-  const MAX_REQUEST_BODY_BYTES = parsePositiveInt(
-    process.env.MAX_REQUEST_BODY_BYTES,
-    16 * 1024,
-  );
-  const MAX_SESSION_ID_LENGTH = parsePositiveInt(
-    process.env.MAX_SESSION_ID_LENGTH,
-    128,
+    config.CORS_ALLOWED_ORIGINS,
+    config.NODE_ENV,
   );
 
-  app.set("trust proxy", trustProxy);
+  app.set("trust proxy", config.TRUST_PROXY);
   app.use(helmet());
 
   app.use((req: Request, res: Response, next: NextFunction) => {
@@ -225,25 +161,15 @@ export async function createApp() {
       credentials: true,
     }),
   );
-  app.use(express.json({ limit: MAX_REQUEST_BODY_BYTES }));
+  app.use(express.json({ limit: config.MAX_REQUEST_BODY_BYTES }));
   app.use(
     express.urlencoded({
       extended: false,
-      limit: MAX_REQUEST_BODY_BYTES,
+      limit: config.MAX_REQUEST_BODY_BYTES,
     }),
   );
 
   // --- Rate limiting configuration ---
-  const RATE_LIMIT_IP_MAX =
-    parseInt(process.env.RATE_LIMIT_IP_MAX ?? "", 10) || 30;
-  const RATE_LIMIT_IP_WINDOW_MS =
-    parseInt(process.env.RATE_LIMIT_IP_WINDOW_MS ?? "", 10) || 60 * 60 * 1000;
-  const RATE_LIMIT_SESSION_MAX =
-    parseInt(process.env.RATE_LIMIT_SESSION_MAX ?? "", 10) || 20;
-  const RATE_LIMIT_SESSION_WINDOW_MS =
-    parseInt(process.env.RATE_LIMIT_SESSION_WINDOW_MS ?? "", 10) ||
-    60 * 60 * 1000;
-
   const rateLimitMessage = {
     error:
       "You've sent a lot of messages recently. Please wait a bit before trying again.",
@@ -251,11 +177,11 @@ export async function createApp() {
 
   let ipRateLimitStore: RateLimitStore | undefined;
   let sessionRateLimitStore: RateLimitStore | undefined;
-  if (REDIS_URL) {
+  if (config.REDIS_URL) {
     try {
       const redisClient = await connectRedisWithTimeout(
-        REDIS_URL,
-        REDIS_CONNECT_TIMEOUT_MS,
+        config.REDIS_URL,
+        config.REDIS_CONNECT_TIMEOUT_MS,
       );
       ipRateLimitStore = createRedisStore(redisClient, "rl:ip:");
       sessionRateLimitStore = createRedisStore(redisClient, "rl:session:");
@@ -275,8 +201,8 @@ export async function createApp() {
   }
 
   const ipLimiter = rateLimit({
-    windowMs: RATE_LIMIT_IP_WINDOW_MS,
-    max: RATE_LIMIT_IP_MAX,
+    windowMs: config.RATE_LIMIT_IP_WINDOW_MS,
+    max: config.RATE_LIMIT_IP_MAX,
     store: ipRateLimitStore,
     standardHeaders: true,
     legacyHeaders: false,
@@ -284,7 +210,7 @@ export async function createApp() {
     handler: (req: Request, res: Response) => {
       const sessionId = sanitizeSessionId(
         (req.body as { sessionId?: unknown })?.sessionId,
-        MAX_SESSION_ID_LENGTH,
+        config.MAX_SESSION_ID_LENGTH,
       );
       logRateLimit({
         requestId: getRequestId(req),
@@ -297,15 +223,15 @@ export async function createApp() {
   });
 
   const sessionLimiter = rateLimit({
-    windowMs: RATE_LIMIT_SESSION_WINDOW_MS,
-    max: RATE_LIMIT_SESSION_MAX,
+    windowMs: config.RATE_LIMIT_SESSION_WINDOW_MS,
+    max: config.RATE_LIMIT_SESSION_MAX,
     store: sessionRateLimitStore,
     standardHeaders: true,
     legacyHeaders: false,
     keyGenerator: (req: Request) => {
       const sessionId = sanitizeSessionId(
         (req.body as { sessionId?: unknown })?.sessionId,
-        MAX_SESSION_ID_LENGTH,
+        config.MAX_SESSION_ID_LENGTH,
       );
       return sessionId ?? "unknown";
     },
@@ -314,7 +240,7 @@ export async function createApp() {
     handler: (req: Request, res: Response) => {
       const sessionId = sanitizeSessionId(
         (req.body as { sessionId?: unknown })?.sessionId,
-        MAX_SESSION_ID_LENGTH,
+        config.MAX_SESSION_ID_LENGTH,
       );
       logRateLimit({
         requestId: getRequestId(req),
@@ -327,35 +253,23 @@ export async function createApp() {
   });
 
   // --- Input limits ---
-  const MAX_MESSAGE_LENGTH =
-    parseInt(process.env.MAX_MESSAGE_LENGTH ?? "", 10) || 1000;
-  const MAX_HISTORY_TURNS =
-    parseInt(process.env.MAX_HISTORY_TURNS ?? "", 10) || 20;
-  const MAX_STORED_MESSAGES = parsePositiveInt(
-    process.env.MAX_STORED_MESSAGES,
-    MAX_HISTORY_TURNS * 2,
-  );
-  const MAX_ACTIVE_SESSIONS = parsePositiveInt(
-    process.env.MAX_ACTIVE_SESSIONS,
-    5000,
-  );
   /** Returns a copy of the most recent turns of conversation history, capped to MAX_HISTORY_TURNS. */
   function recentHistory(history: ChatMessage[]): ChatMessage[] {
-    return history.slice(-MAX_HISTORY_TURNS);
+    return history.slice(-config.MAX_HISTORY_TURNS);
   }
 
   // --- Conversation state ---
   const conversations = new Map<string, ConversationSession>();
 
   function trimStoredMessages(session: ConversationSession): void {
-    if (session.messages.length <= MAX_STORED_MESSAGES) {
+    if (session.messages.length <= config.MAX_STORED_MESSAGES) {
       return;
     }
-    session.messages = session.messages.slice(-MAX_STORED_MESSAGES);
+    session.messages = session.messages.slice(-config.MAX_STORED_MESSAGES);
   }
 
   function evictOldestSessionIfNeeded(): void {
-    if (conversations.size < MAX_ACTIVE_SESSIONS) {
+    if (conversations.size < config.MAX_ACTIVE_SESSIONS) {
       return;
     }
 
@@ -375,7 +289,7 @@ export async function createApp() {
   }
 
   function isExpired(session: ConversationSession, now: number): boolean {
-    return now - session.lastActivityAt > SESSION_TTL_MS;
+    return now - session.lastActivityAt > config.SESSION_TTL_MS;
   }
 
   function getSession(sessionId: string): ConversationSession {
@@ -409,7 +323,7 @@ export async function createApp() {
 
   const cleanupTimer = setInterval(
     cleanupExpiredSessions,
-    SESSION_CLEANUP_INTERVAL_MS,
+    config.SESSION_CLEANUP_INTERVAL_MS,
   );
   cleanupTimer.unref?.();
 
@@ -421,41 +335,39 @@ export async function createApp() {
     ipLimiter,
     sessionLimiter,
     async (req: Request, res: Response) => {
-      const { message, sessionId } = req.body as {
-        message?: unknown;
-        sessionId?: unknown;
-      };
+      const parsed = chatRequestSchema.safeParse(req.body);
+
+      if (!parsed.success) {
+        res.status(400).json({ error: "message and sessionId are required" });
+        return;
+      }
+
+      const { message, sessionId } = parsed.data;
       const normalizedSessionId = sanitizeSessionId(
         sessionId,
-        MAX_SESSION_ID_LENGTH,
+        config.MAX_SESSION_ID_LENGTH,
       );
 
-      if (typeof message !== "string" || !normalizedSessionId) {
+      if (!normalizedSessionId || message === "") {
         res.status(400).json({ error: "message and sessionId are required" });
         return;
       }
 
-      const normalizedMessage = message.trim();
-      if (normalizedMessage === "") {
-        res.status(400).json({ error: "message and sessionId are required" });
-        return;
-      }
-
-      if (normalizedMessage.length > MAX_MESSAGE_LENGTH) {
+      if (message.length > config.MAX_MESSAGE_LENGTH) {
         res.status(400).json({
-          error: `Message is too long. Please keep it under ${MAX_MESSAGE_LENGTH} characters.`,
+          error: `Message is too long. Please keep it under ${config.MAX_MESSAGE_LENGTH} characters.`,
         });
         return;
       }
 
       const session = getSession(normalizedSessionId);
-      session.messages.push({ role: "user", content: normalizedMessage });
+      session.messages.push({ role: "user", content: message });
       trimStoredMessages(session);
 
       const start = Date.now();
 
       // Try FAQ cache before calling the LLM
-      const faq = matchFaq(normalizedMessage);
+      const faq = matchFaq(message);
       if (faq) {
         session.messages.push({
           role: "assistant",
@@ -510,11 +422,18 @@ export async function createApp() {
   );
 
   // --- SMS endpoint (Twilio) ---
-  if (ENABLE_TWILIO_SMS) {
+  if (config.ENABLE_TWILIO_SMS) {
     app.post("/sms", async (req: Request, res: Response) => {
       const twiml = new twilio.twiml.MessagingResponse();
-      const from = (req.body as { From?: string }).From;
-      const body = (req.body as { Body?: string }).Body?.trim();
+      const parsed = smsRequestSchema.safeParse(req.body);
+
+      if (!parsed.success) {
+        twiml.message("Sorry, I didn't catch that.");
+        res.type("text/xml").send(twiml.toString());
+        return;
+      }
+
+      const { From: from, Body: body } = parsed.data;
 
       if (!from || !body) {
         twiml.message("Sorry, I didn't catch that.");
@@ -522,9 +441,9 @@ export async function createApp() {
         return;
       }
 
-      if (body.length > MAX_MESSAGE_LENGTH) {
+      if (body.length > config.MAX_MESSAGE_LENGTH) {
         twiml.message(
-          `Message is too long. Please keep it under ${MAX_MESSAGE_LENGTH} characters.`,
+          `Message is too long. Please keep it under ${config.MAX_MESSAGE_LENGTH} characters.`,
         );
         res.type("text/xml").send(twiml.toString());
         return;
@@ -611,7 +530,7 @@ export async function createApp() {
       maybeHttpError.type === "entity.too.large"
     ) {
       res.status(413).json({
-        error: `Request body is too large. Keep it under ${MAX_REQUEST_BODY_BYTES} bytes.`,
+        error: `Request body is too large. Keep it under ${config.MAX_REQUEST_BODY_BYTES} bytes.`,
       });
       return;
     }
