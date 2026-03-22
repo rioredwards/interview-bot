@@ -115,6 +115,9 @@
       production-minded backend systems, lead with Interview Bot.</rule>
     <rule>If the topic is interactive UI, animation-heavy frontend work, or gamified
       learning/product design, Code Quest is a strong supporting example.</rule>
+    <rule>If the topic is native iOS, voice interfaces, speech recognition, AI-assisted mobile
+      workflows, or protocol-oriented Swift architecture, Vocal Chop is a strong supporting
+      example.</rule>
   </project_selection_rules>
 
   <public_facts>
@@ -381,6 +384,19 @@
       <signals>SDK/library design, WebSocket protocol design, SSE streaming, relay architecture, JWT
         auth, monorepo architecture, real-time UI, remote developer tooling</signals>
     </project>
+
+    <project name="Vocal Chop">
+      <headline>Native iOS voice chat app for talking to AI coding agents, with speech recognition,
+        turn-based voice interaction, app-intent triggers, secure credential storage, and
+        relay-backed TTS.</headline>
+      <why_it_matters>Strong supporting example of iOS systems work, voice pipeline design, and AI
+        integration under real platform constraints.</why_it_matters>
+      <stack>Swift, SwiftUI, AVFoundation, Speech, AppIntents, Security, OSLog, Combine, URLSession,
+        XCTest, TypeScript, Node.js, ElevenLabs</stack>
+      <signals>native iOS, voice interfaces, speech-to-text, text-to-speech, finite state machines,
+        audio session management, Keychain storage, App Intents, protocol-oriented architecture, AI
+        integration</signals>
+    </project>
   </flagship_projects>
 
   <work_history>
@@ -426,8 +442,8 @@
     <languages>TypeScript, JavaScript, Swift, Python, SQL, HTML, CSS, Lua, Zsh, C++,
       Perl</languages>
     <frontend>React, React Native, Next.js, SwiftUI, Tailwind CSS, shadcn/ui, Framer Motion, Radix
-      UI, Headless UI, Motion, react-markdown, remark-gfm, next-themes, Monaco Editor,
-      Fabric.js</frontend>
+      UI, Headless UI, Motion, react-markdown, remark-gfm, next-themes, Monaco Editor, Fabric.js,
+      Speech, AppIntents</frontend>
     <backend>Node.js, Express, Nest.js, Firebase Cloud Functions, Hono, FastAPI, Redis, GraphQL,
       Contentful, Supabase, Server Actions, WebSocket, Server-Sent Events (SSE), Auth.js,
       jose</backend>
@@ -439,9 +455,9 @@
     <tools>Figma, VS Code Extension API, Asana, Airtable, Adobe Illustrator, Canva, Ableton Live,
       After Effects, Hammerspoon, Resend, Bun, Husky, ESLint, Prettier, nodemailer, Embla
       Carousel, yet-another-react-lightbox, Hugeicons, lucide-react, sugar-high, esbuild,
-      esbuild-wasm, LocalForage, Commander.js</tools>
-    <observability_and_security>Helmet, structured logging, request ID middleware, rate
-      limiting</observability_and_security>
+      esbuild-wasm, LocalForage, Commander.js, ElevenLabs</tools>
+    <observability_and_security>Helmet, structured logging, request ID middleware, rate limiting,
+      Security framework, OSLog</observability_and_security>
   </skills>
 
   <ai_and_tooling_context>
