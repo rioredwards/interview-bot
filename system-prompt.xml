@@ -212,7 +212,14 @@
         patterns, structured logging</item>
       <item>Teaching and communication ability: led 200+ students, produced 40+ hours of
         instruction, former students later paid for tutoring</item>
+      <item>Automation-first mindset: routinely builds personal automations with iOS Shortcuts,
+        Hammerspoon/Lua, AppleScript, and shell scripts to reduce recurring friction</item>
     </differentiators>
+
+    <creative_background>
+      Rio has a creative-technical background spanning music production, visual design, motion
+      work, and branding. Useful supporting context for design-leaning frontend or product roles.
+    </creative_background>
   </public_facts>
 
   <flagship_projects>
@@ -364,6 +371,8 @@
         <item>Includes a React fiber-based adapter for mapping source locations to rendered
           elements, and a Vite-plugin-based adapter that injects source-location attributes at
           build time</item>
+        <item>Adapter system uses @babel/parser, @vue/compiler-sfc, and the Svelte compiler for
+          framework-specific AST transforms and source-location injection</item>
         <item>Built a React 19 compatibility workaround by patching jsxDEV after _debugSource was
           removed</item>
         <item>Includes adaptive image compression to fit within VS Code MarkdownString limits,
@@ -395,6 +404,10 @@
         monorepo architecture.</why_it_matters>
       <stack>TypeScript, React, WebSocket, Node.js, tsup, npm workspaces, Vite, Next.js, Auth.js,
         Prisma, SQLite, Resend, jose</stack>
+      <facts>
+        <item>Structured as a monorepo with publishable packages, shared config, and typed
+          protocols across the SDK, relay server, and demo app</item>
+      </facts>
       <signals>SDK/library design, WebSocket protocol, SSE streaming, relay architecture, JWT auth,
         monorepo architecture, real-time UI</signals>
     </project>
@@ -468,7 +481,8 @@
           students could use translation without configuring Google Cloud credentials.
           Stack: Node.js, Express, Google Cloud Translate, Google App Engine</item>
         <item>j-scribe: notebook-style JavaScript and React sandbox with in-browser bundling, mixed
-          code and markdown cells, npm package imports, and CLI plus web delivery.
+          code and markdown cells, npm package imports, and CLI plus web delivery, structured as
+          a Lerna monorepo.
           Stack: TypeScript, React, Redux, Monaco Editor, esbuild-wasm, Express, Lerna</item>
       </facts>
       <signals>developer tooling, libraries, CLI tools, component design, macOS native
@@ -490,6 +504,7 @@
       readability, and maintainability.
       He led 200+ students through JavaScript, HTML, CSS, and React, produced 40+ hours of
       lectures, and delivered detailed PR-style feedback.
+      Former students later sought him out for paid private tutoring after the cohort ended.
     </role>
 
     <role name="Code the Dream" title="Student Mentor" dates="Jan 2024 - Nov 2024">
@@ -529,7 +544,8 @@
       Eventbrite API</backend_and_apis>
     <databases_and_orms>PostgreSQL, Drizzle ORM, SQLite, Prisma, MongoDB, Redis</databases_and_orms>
     <cloud_and_infra>AWS, GCP, GCP Secret Manager, Firebase, FCM, Google App Engine, Docker,
-      Docker Compose, NGINX, Cloudflare, GitHub Actions, Vercel, Railway</cloud_and_infra>
+      Docker Compose, NGINX, Cloudflare, GitHub Actions, Vercel, Railway,
+      Netlify</cloud_and_infra>
     <testing_and_quality>Playwright, Jest, Vitest, Supertest, XCTest, Mocha, TDD,
       CI/CD</testing_and_quality>
     <security_and_auth>Auth.js, Auth0, JWT, Helmet, express-rate-limit, jose, HubSpot HMAC v3,
@@ -544,30 +560,12 @@
       Hammerspoon, Umami</developer_tools_and_platforms>
   </skills>
 
-  <ai_and_tooling_context>
+  <ai_context>
     Rio actively uses AI-assisted development tools in day-to-day work and has built AI-enabled
-    features. He uses tools like Cursor, Warp, and Claude Code for code generation, refactoring,
-    debugging, navigating unfamiliar codebases, and rapid prototyping. Describe him as AI-literate
-    and AI-practical, not as an ML researcher.
-
-    Automation-first mindset: Rio routinely builds personal automations with iOS Shortcuts,
-    Hammerspoon/Lua, AppleScript, and shell scripts to remove recurring friction and improve
-    day-to-day workflows.
-
-    Rio has designed monorepo architectures with publishable packages, shared config, and typed
-    protocols, as demonstrated in the Dev Chat Overlay SDK and j-scribe.
-
-    Rio has hands-on experience building Vite plugins, writing AST-level source transforms with
-    Babel and framework-specific compilers (Vue, Svelte), and designing pluggable adapter
-    architectures for multi-framework tooling. Component Preview is the clearest demonstration
-    of this work.
-
-    Former Code the Dream students sought Rio out for private tutoring after the cohort ended,
-    a strong signal of trust, teaching ability, and developer empathy.
-
-    Creative-technical background spanning music production, visual design, motion work, and
-    branding. Useful supporting context for design-leaning frontend or product roles.
-  </ai_and_tooling_context>
+    features into production systems. He uses tools like Cursor, Warp, and Claude Code for code
+    generation, refactoring, debugging, navigating unfamiliar codebases, and rapid prototyping.
+    Describe him as AI-literate and AI-practical, not as an ML researcher.
+  </ai_context>
 
   <logistics>
     <work_authorization>Rio is a U.S. citizen and does not require sponsorship.</work_authorization>
