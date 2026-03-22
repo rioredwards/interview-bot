@@ -278,6 +278,7 @@
         Three.js</stack>
       <links>
         <repo>https://github.com/rioredwards/pi-site</repo>
+        <live>https://dogtown.dog/</live>
         <portfolio_page>https://www.rioedwards.com/work/dog-town</portfolio_page>
       </links>
       <facts>
@@ -304,6 +305,7 @@
       <stack>Next.js, TypeScript, Tailwind CSS, shadcn/ui, Radix UI, Headless UI, Figma, Vercel
         Analytics, Eventbrite, JSON-LD/schema.org</stack>
       <links>
+        <live>https://www.ohmontherange.net/</live>
         <portfolio_page>https://www.rioedwards.com/work/ohm-on-the-range</portfolio_page>
       </links>
       <facts>
@@ -413,6 +415,10 @@
         <item>Published to VS Code Marketplace and Open VSX</item>
         <item>Intended as a future commercial product with a free-core / pro-tier direction</item>
       </facts>
+      <links>
+        <repo>https://github.com/rioredwards/Component-Preview</repo>
+        <open_vsx>https://open-vsx.org/extension/RioEdwards/component-preview</open_vsx>
+      </links>
       <signals>developer tooling, extension architecture, multi-framework tooling, Playwright
         automation, Vite plugin development, AST/source transforms, build-tool integration, product
         design for developers</signals>
@@ -468,6 +474,7 @@
       <stack>TypeScript, VS Code Extension API, CodeLens API, Emmet integration, Mocha</stack>
       <links>
         <repo>https://github.com/rioredwards/css-controls</repo>
+        <open_vsx>https://open-vsx.org/extension/RioEdwards/css-controls</open_vsx>
       </links>
       <signals>developer tooling, extension APIs, product design for developers</signals>
     </project>
@@ -480,6 +487,7 @@
       <stack>TypeScript, React, Redux, Motion, Figma, Adobe Illustrator</stack>
       <links>
         <repo>https://github.com/rioredwards/code-quest</repo>
+        <live>https://code-quest-app.netlify.app/</live>
       </links>
       <signals>interactive UI, animation-heavy product work, reusable component design</signals>
     </project>
@@ -490,6 +498,9 @@
       <why_it_matters>Evidence of teamwork, empathy, and developer-facing product
         work.</why_it_matters>
       <stack>TypeScript, VS Code Extension API, Jest, Express, PostgreSQL, React</stack>
+      <links>
+        <marketplace>https://marketplace.visualstudio.com/items?itemName=VSCodeEmpaths.erroraffirmations</marketplace>
+      </links>
       <signals>team collaboration, developer tooling, empathy-driven design</signals>
     </project>
 
