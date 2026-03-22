@@ -29,6 +29,6 @@ describe("system-prompt", () => {
   it("contains FAQ entries", () => {
     const prompt = getSystemPrompt();
     expect(prompt).toContain("<faq>");
-    expect(prompt).toContain("Who is Rio?");
+    expect(prompt).toContain("What are his strongest projects?");
   });
 });
