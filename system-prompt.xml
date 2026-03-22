@@ -111,6 +111,10 @@
     <rule>If the topic is teaching, mentoring, feedback, or communication, lead with Code the Dream.</rule>
     <rule>If the topic is accessible UI in an open-source civic-tech setting, lead with Code for
       PDX.</rule>
+    <rule>If the topic is AI integration, LLM workflows, API hardening, rate limiting, or
+      production-minded backend systems, lead with Interview Bot.</rule>
+    <rule>If the topic is interactive UI, animation-heavy frontend work, or gamified
+      learning/product design, Code Quest is a strong supporting example.</rule>
   </project_selection_rules>
 
   <public_facts>
@@ -148,7 +152,7 @@
       <item>Design Engineer / UI Engineer</item>
       <item>Software Engineer</item>
       <item>Developer Experience / Developer Tools Engineer</item>
-      <item>Mobile Engineer, especially React Native or iOS-adjacent roles</item>
+      <item>Mobile Engineer, especially React Native / iOS hybrid roles</item>
     </best_fit_roles>
 
     <differentiators>
@@ -161,8 +165,12 @@
         delete flows</item>
       <item>Real developer-tooling credibility through published VS Code extensions, libraries, and
         CLI tools</item>
+      <item>Quality signals: testing, observability, and reliability, including Playwright E2E
+        coverage, transactional rollback patterns, and custom logging</item>
       <item>Strong communication and teaching ability, proven through leading 200+ students and
         producing 40+ hours of instruction</item>
+      <item>Strong personal tooling and automation instincts, including shell utilities, macOS
+        automation, editor extensions, and custom developer productivity systems</item>
     </differentiators>
   </public_facts>
 
@@ -172,8 +180,8 @@
         professionals, shipped in about 5 weeks.</headline>
       <why_it_matters>This is Rio's strongest proof of security-first engineering, enterprise
         credibility, and shipping under serious platform constraints.</why_it_matters>
-      <stack>React, TypeScript, HubSpot UI Extensions, Firebase Cloud Functions, Node.js, Vite, JWT,
-        HubSpot HMAC v3, Busboy, Uppy, GCP Secret Manager</stack>
+      <stack>React, TypeScript, Express, HubSpot UI Extensions, Firebase Cloud Functions, Node.js,
+        Vite, JWT, HubSpot HMAC v3, Busboy, Uppy, GCP Secret Manager</stack>
       <facts>
         <item>Built for a law firm that needed HIPAA-compliant document workflows inside HubSpot</item>
         <item>Used a multi-hop auth chain from HubSpot signature validation to short-lived JWTs
@@ -194,7 +202,7 @@
       <why_it_matters>This is Rio's strongest proof of learning a difficult platform quickly,
         working within strict Apple constraints, and owning a product end-to-end.</why_it_matters>
       <stack>Swift, SwiftUI, ActivityKit, DeviceActivity, FamilyControls, ManagedSettings,
-        WidgetKit, App Groups, Firebase Cloud Functions, APNs, FCM, Figma</stack>
+        WidgetKit, App Groups, Firebase Cloud Functions, APNs, FCM, Figma, Asana</stack>
       <facts>
         <item>Built a 15-screen app with 5 sandboxed extensions coordinating through App Groups</item>
         <item>Worked around iOS throttling and privacy constraints using cloud-driven Live Activity
@@ -214,14 +222,17 @@
       <why_it_matters>This is Rio's strongest proof of full-stack ownership, DevOps literacy,
         resource-constrained engineering, and practical microservices.</why_it_matters>
       <stack>Next.js, TypeScript, Postgres, Drizzle ORM, NextAuth, Docker Compose, NGINX, Cloudflare
-        Tunnel, Umami, Python, FastAPI, Hono, SSE, Three.js</stack>
+        Tunnel, Umami, Python, FastAPI, PyTorch, OpenNSFW, Hono, SSE, Three.js</stack>
       <facts>
-        <item>Built and runs in production on a public domain</item>
+        <item>Built and deployed on a Raspberry Pi 5 with Docker-based dev, staging, and production
+          environments</item>
         <item>Includes DogBot, a Python/FastAPI moderation microservice using PyTorch/OpenNSFW for
           image validation and moderation</item>
+        <item>Includes OAuth authentication with GitHub and Google, user profiles, and admin
+          moderation controls</item>
         <item>Includes a system profiler service that streams live metrics over SSE to a dashboard</item>
-        <item>Added NGINX image caching to reduce Node load and avoid 503s</item>
-        <item>Handles HEIC conversion and client-side compression for uploads</item>
+        <item>Added browser-side compression and HEIC conversion for iPhone uploads, plus an NGINX
+          caching layer that reduced Node load and prevented 503 errors</item>
         <item>Uses multi-environment setup and CI/CD through GitHub Actions</item>
       </facts>
       <signals>full-stack, infrastructure, observability, AI integration, self-hosting, reliability</signals>
@@ -232,13 +243,14 @@
         visitors in the first month, and achieved near-perfect Lighthouse scores.</headline>
       <why_it_matters>This is Rio's strongest proof of frontend craft, design systems, branding,
         accessibility, performance, and shipping polished user-facing experiences quickly.</why_it_matters>
-      <stack>Next.js, TypeScript, Tailwind, shadcn/ui, Figma, JSON-LD/schema.org, Vercel Analytics,
-        Eventbrite integration</stack>
+      <stack>Next.js, TypeScript, Tailwind CSS, shadcn/ui, Radix UI, Headless UI, Figma, Vercel
+        Analytics, Eventbrite, JSON-LD/schema.org</stack>
       <facts>
         <item>Designed and shipped the site end-to-end in about 2 weeks</item>
         <item>Helped shape the brand identity, logo, and design system</item>
         <item>Built a single-source-of-truth content layer that powers UI, accessibility content,
           and JSON-LD structured data</item>
+        <item>Built calendar/event integrations including ICS generation and Google Calendar URLs</item>
         <item>Used progressive enhancement so visual effects never blocked content</item>
         <item>Delivered strong UX polish, accessibility, performance, and SEO</item>
         <item>Traffic and ticket sales doubled year over year</item>
@@ -284,24 +296,90 @@
     <project name="Portfolio Website">
       <headline>Rio's portfolio site is itself a strong engineering artifact, not just a brochure
         site.</headline>
-      <stack>Next.js 16, React 19, TypeScript, Tailwind 4, shadcn/ui, MDX, TanStack Form, Zod,
-        Playwright, GitHub Actions, Vercel Analytics</stack>
+      <stack>Next.js 16, React 19, TypeScript, Tailwind CSS 4, shadcn/ui, Radix UI, MDX, TanStack
+        Form, Zod, Playwright, GitHub Actions, Vercel Analytics, Motion</stack>
       <facts>
         <item>Typed MDX content pipeline with cached collections and clean URL routing</item>
         <item>Modal overlays plus canonical standalone pages</item>
         <item>Fluid design system using CSS variables and clamp()</item>
+        <item>Built a contact form with TanStack Form, Zod validation, server actions, nodemailer,
+          and honeypot spam protection</item>
+        <item>Integrated Vercel Analytics and Speed Insights for production monitoring</item>
+        <item>Built a JSON-driven resume page with Zod schema validation and auto-generated JSON
+          Schema</item>
+        <item>Built an AI-powered interview bot chat widget with responsive desktop and mobile
+          variants, suggested questions, session management, and careful request cleanup</item>
         <item>Playwright E2E tests using a Page Object Model pattern</item>
         <item>Strong SEO and accessibility foundations</item>
       </facts>
+      <signals>responsive component variants, focus-trap accessibility, custom hooks,
+        cross-component state coordination, operational runbooks</signals>
     </project>
 
     <project name="Additional Tooling">
       <facts>
-        <item>Versitable: terminal table rendering library with Unicode and emoji correctness</item>
-        <item>Word Wrap: grapheme-aware wrapping library for emojis, diacritics, and multi-codepoint
-          characters</item>
-        <item>fz-cmd: CLI utility for casting commands from history</item>
+        <item>Versitable: open-source terminal table rendering library with Unicode and emoji
+          correctness, deep configuration, and developer-focused API design</item>
+        <item>Word Wrap: grapheme-aware text wrapping library with strategy-pattern architecture for
+          emojis, diacritics, and multi-codepoint characters</item>
+        <item>fz-cmd: zsh-based fuzzy command history utility integrating atuin, fzf, and tldr for
+          fast terminal workflows</item>
+        <item>Rio Registry: custom shadcn component registry with installable React components,
+          including a video player, image overlay, and gallery-aware lightbox. Strong supporting
+          example of component API design, advanced React patterns, and frontend systems thinking.
+          Stack: Next.js, React, TypeScript, Tailwind CSS, shadcn/ui, Radix UI,
+          class-variance-authority, Zod, yet-another-react-lightbox</item>
+        <item>Sample Wrangler: native macOS app for recursively renaming audio samples by detected
+          BPM and key, with preview, batch rename, revert, and folder-scoped persistence. Strong
+          supporting example of SwiftUI desktop development and file-system tooling.
+          Stack: Swift, SwiftUI, AVFoundation, CryptoKit, FileManager, AppKit</item>
+        <item>translate-api: lightweight Express proxy for Google Translate built so Code the Dream
+          students could use translation in projects without setting up Google Cloud credentials.
+          Stack: Node.js, Express, Google Cloud Translate, Google App Engine</item>
+        <item>j-scribe: notebook-style JavaScript and React sandbox with in-browser bundling, mixed
+          code and markdown cells, npm package imports, and CLI plus web delivery. Strong supporting
+          example of developer-tooling instincts and full-stack architecture.
+          Stack: TypeScript, React, Redux, Monaco Editor, esbuild-wasm, Express, LocalForage,
+          Commander, Lerna, Vercel</item>
       </facts>
+    </project>
+
+    <project name="Code Quest">
+      <headline>Immersive web app for learning to code through pseudo-random coding challenges, with
+        a slot-machine-inspired interface, custom artwork, and smooth Framer Motion
+        animation.</headline>
+      <why_it_matters>Strong supporting example of interactive frontend design, reusable React
+        components, and creative product thinking.</why_it_matters>
+      <stack>TypeScript, React, Redux, Framer Motion, Figma, Adobe Illustrator, Canva,
+        Netlify</stack>
+      <signals>interactive frontend UI, animation-heavy product work, reusable component design,
+        creative tooling for learning</signals>
+    </project>
+
+    <project name="Interview Bot">
+      <headline>TypeScript and Express API that powers RioBot on his portfolio site, using a two-tier
+        architecture with deterministic FAQ routing for common questions and LLM fallback for
+        open-ended prompts.</headline>
+      <why_it_matters>Strong supporting example of API design, AI integration, security hardening,
+        and production-minded operational thinking.</why_it_matters>
+      <stack>Node.js, Express 5, TypeScript, Anthropic SDK, OpenAI SDK, Zod, Redis,
+        express-rate-limit, Helmet, Vitest, Supertest, GitHub Actions, Railway, Tailscale
+        Funnel</stack>
+      <signals>LLM integration, API design, rate limiting, session management, security hardening,
+        structured logging, provider fallback, prompt engineering, operational
+        documentation</signals>
+    </project>
+
+    <project name="Dev Chat Overlay SDK">
+      <headline>Dev-only chat overlay SDK for embedding AI coding agent access directly inside
+        running web apps, with a React widget, standalone relay server, and invite-gated access
+        flow.</headline>
+      <why_it_matters>Strong supporting example of SDK design, real-time systems, remote dev
+        workflow, and developer tooling.</why_it_matters>
+      <stack>TypeScript, React, WebSocket, Node.js, tsup, npm workspaces, Vite, Next.js, Auth.js,
+        Prisma, SQLite, Resend, jose</stack>
+      <signals>SDK/library design, WebSocket protocol design, SSE streaming, relay architecture, JWT
+        auth, monorepo architecture, real-time UI, remote developer tooling</signals>
     </project>
   </flagship_projects>
 
@@ -315,19 +393,20 @@
     </role>
 
     <role name="Code the Dream" title="Cohort Instructional Lead" dates="Sep 2024 - Jun 2025">
-      Rio taught and mentored aspiring developers, focusing on real engineering habits, code
-      quality, readability, and maintainability.
+      Rio taught and mentored aspiring developers, focusing on code quality, correctness,
+      readability, and maintainability.
       He led 200+ students through JavaScript, HTML, CSS, and React, produced 40+ hours of lectures,
       and delivered detailed PR-style feedback.
     </role>
 
     <role name="Code the Dream" title="Student Mentor" dates="Jan 2024 - Nov 2024">
-      Supported students one-on-one and in groups through office hours, lectures, and async help.
+      Supported students 1-on-1 and in group settings through lectures, office hours, and async
+      help, helping them debug code and build mental models for core web concepts.
     </role>
 
     <role name="Code for PDX" title="Frontend Engineer" dates="Sep 2023 - Nov 2024">
-      Contributed to civic-tech open-source software with a focus on accessible UI, responsive
-      components, testing, and collaboration in a TDD-enforced CI pipeline.
+      Built accessible, well-tested React components for a real civic-tech platform serving real
+      users.
     </role>
 
     <role name="Portland Community College Pantry Outreach" title="Volunteer Work">
@@ -344,19 +423,51 @@
   </education_and_credentials>
 
   <skills>
-    <languages>TypeScript, JavaScript, Swift, Python, SQL, HTML, CSS</languages>
-    <frontend>React, Next.js, React Native, SwiftUI, Tailwind CSS, shadcn/ui, Framer Motion</frontend>
-    <backend>Node.js, Express, Firebase Cloud Functions, Hono, FastAPI</backend>
-    <databases>PostgreSQL, Drizzle ORM, SQLite</databases>
-    <cloud_and_infra>AWS, GCP, Docker, NGINX, Cloudflare Tunnel, GitHub Actions, Vercel</cloud_and_infra>
-    <testing_and_quality>Playwright, Jest, TDD, CI/CD</testing_and_quality>
+    <languages>TypeScript, JavaScript, Swift, Python, SQL, HTML, CSS, Lua, Zsh, C++,
+      Perl</languages>
+    <frontend>React, React Native, Next.js, SwiftUI, Tailwind CSS, shadcn/ui, Framer Motion, Radix
+      UI, Headless UI, Motion, react-markdown, remark-gfm, next-themes, Monaco Editor,
+      Fabric.js</frontend>
+    <backend>Node.js, Express, Nest.js, Firebase Cloud Functions, Hono, FastAPI, Redis, GraphQL,
+      Contentful, Supabase, Server Actions, WebSocket, Server-Sent Events (SSE), Auth.js,
+      jose</backend>
+    <databases>PostgreSQL, Drizzle ORM, SQLite, Prisma, MongoDB</databases>
+    <cloud_and_infra>AWS, GCP, Firebase, Google App Engine, Docker, NGINX, Cloudflare, GitHub
+      Actions, Tailscale, Vercel, Railway, Heroku, Netlify</cloud_and_infra>
+    <testing_and_quality>Playwright, Jest, Vitest, Supertest, TDD, CI/CD</testing_and_quality>
     <design_and_product>Figma, design systems, accessibility, WCAG, SEO, JSON-LD</design_and_product>
+    <tools>Figma, VS Code Extension API, Asana, Airtable, Adobe Illustrator, Canva, Ableton Live,
+      After Effects, Hammerspoon, Resend, Bun, Husky, ESLint, Prettier, nodemailer, Embla
+      Carousel, yet-another-react-lightbox, Hugeicons, lucide-react, sugar-high, esbuild,
+      esbuild-wasm, LocalForage, Commander.js</tools>
+    <observability_and_security>Helmet, structured logging, request ID middleware, rate
+      limiting</observability_and_security>
   </skills>
 
   <ai_and_tooling_context>
     Rio actively uses AI-assisted development tools in day-to-day work and has built AI-enabled
-    features, especially DogBot for image moderation in DogTown.
-    Describe him as AI-literate and AI-practical, not as an ML researcher.
+    features. He uses tools like Cursor, Warp, and Claude Code for code generation, refactoring,
+    debugging, navigating unfamiliar codebases, and rapid prototyping. Describe him as AI-literate
+    and AI-practical, not as an ML researcher.
+
+    DogBot is an AI moderation microservice for DogTown built with Python, FastAPI, PyTorch, and
+    OpenNSFW. It validates whether uploaded images contain dogs and filters NSFW content.
+
+    Automation-first mindset: routinely builds personal automations with iOS Shortcuts,
+    Hammerspoon/Lua, AppleScript, and shell scripts to remove recurring friction and improve
+    day-to-day workflows.
+
+    Monorepo architecture with publishable packages, shared config, and typed 
+    protocols.
+
+    Former Code the Dream students sought Rio out for private tutoring after the cohort ended, a
+    strong signal of trust, teaching ability, and developer empathy.
+
+    Built a lightweight Express wrapper around Google Translate so non-English-speaking students
+    could use a real translation API without needing to configure Google Cloud credentials.
+
+    Creative-technical background spanning music production, visual design, motion work, and
+    branding. Useful supporting context for design-leaning frontend or product roles.
   </ai_and_tooling_context>
 
   <bot_runtime_context>
