@@ -17,29 +17,31 @@ import { logRequest, logRateLimit } from "./logger.js";
 import { loadConfig } from "./config.js";
 import { chatRequestSchema, smsRequestSchema } from "./schemas.js";
 
+function isLocalDevOrigin(origin: string): boolean {
+  try {
+    const url = new URL(origin);
+    return (
+      (url.protocol === "http:" || url.protocol === "https:") &&
+      ["localhost", "127.0.0.1", "::1"].includes(url.hostname)
+    );
+  } catch {
+    return false;
+  }
+}
+
 function withLocalDevOrigins(allowlist: string[], nodeEnv: string): string[] {
   if (nodeEnv === "production") {
     return allowlist;
   }
 
-  const localOrigins = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-  ];
-
-  if (allowlist.length > 0) {
-    const hasAnyLocalOrigin = allowlist.some((origin) =>
-      localOrigins.includes(origin),
+  if (allowlist.length > 0 && !allowlist.some(isLocalDevOrigin)) {
+    console.warn(
+      "CORS_ALLOWED_ORIGINS does not include localhost. " +
+        "Allowing localhost origins automatically in non-production mode.",
     );
-    if (!hasAnyLocalOrigin) {
-      console.warn(
-        "CORS_ALLOWED_ORIGINS does not include localhost. " +
-          "Allowing localhost origins automatically in non-production mode.",
-      );
-    }
   }
 
-  return [...new Set([...allowlist, ...localOrigins])];
+  return allowlist;
 }
 
 interface ConversationSession {
@@ -146,12 +148,10 @@ export async function createApp() {
           return;
         }
 
-        if (allowedOrigins.length === 0) {
-          callback(new Error("CORS_NOT_ALLOWED"));
-          return;
-        }
-
-        if (allowedOrigins.includes(origin)) {
+        if (
+          allowedOrigins.includes(origin) ||
+          (config.NODE_ENV !== "production" && isLocalDevOrigin(origin))
+        ) {
           callback(null, true);
           return;
         }
