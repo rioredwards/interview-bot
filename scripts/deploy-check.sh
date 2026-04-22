@@ -4,7 +4,7 @@ set -euo pipefail
 
 if [[ $# -lt 1 ]]; then
 	printf "Usage: %s <base-url> [session-id]\n" "$0"
-	printf "Example: %s https://your-service.up.railway.app deploy-smoke\n" "$0"
+	printf "Example: %s https://your-app.fly.dev deploy-smoke\n" "$0"
 	exit 1
 fi
 

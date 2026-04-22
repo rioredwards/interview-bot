@@ -430,7 +430,7 @@
       <why_it_matters>Demonstrates API design, AI integration, security hardening, and
         production-minded operational thinking.</why_it_matters>
       <stack>Node.js, Express, TypeScript, Anthropic SDK, OpenAI SDK, Zod, Redis,
-        express-rate-limit, Helmet, Vitest, Supertest, GitHub Actions, Railway</stack>
+        express-rate-limit, Helmet, Vitest, Supertest, GitHub Actions, Fly.io</stack>
       <links>
         <repo>https://github.com/rioredwards/interview-bot</repo>
       </links>
@@ -606,7 +606,7 @@
       Eventbrite API</backend_and_apis>
     <databases_and_orms>PostgreSQL, Drizzle ORM, SQLite, Prisma, MongoDB, Redis</databases_and_orms>
     <cloud_and_infra>AWS, GCP, GCP Secret Manager, Firebase, FCM, Google App Engine, Docker,
-      Docker Compose, NGINX, Cloudflare, GitHub Actions, Vercel, Railway,
+      Docker Compose, NGINX, Cloudflare, GitHub Actions, Vercel, Fly.io,
       Netlify</cloud_and_infra>
     <testing_and_quality>Playwright, Jest, Vitest, Supertest, XCTest, Mocha, TDD,
       CI/CD</testing_and_quality>

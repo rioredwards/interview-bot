@@ -160,9 +160,7 @@ Notes:
 
 ## Deployment
 
-### Option A: Deploy to a Node host (Render, Railway, Fly.io, similar)
-
-Current production runs on Railway.
+### Option A: Deploy to Fly.io
 
 1. Set build command: `npm ci && npm run build`
 2. Set start command: `npm run start`
@@ -198,10 +196,29 @@ PORT=1807 npm run start
 curl https://<public-bot-url>/health
 ```
 
-### Railway config in repo
+### Fly config in repo
 
-- `railway.toml` defines build/start commands and `/health` health check defaults.
-- Railway runtime secrets still need to be set in Railway Variables.
+- `fly.toml` defines app-level deployment and `/health` checks.
+- `Dockerfile` defines the production image build and startup command.
+
+## CI/CD (GitHub Actions + Fly.io)
+
+Required GitHub secret:
+
+- `FLY_API_TOKEN` (repo secret used by `.github/workflows/fly-deploy.yml`)
+
+Recommended branch protection for `main`:
+
+- Require pull requests before merging.
+- Require branches to be up to date before merging.
+- Require passing status check: `Typecheck, Test, Build`.
+
+Deploy sequence:
+
+1. Open or update a PR -> `CI` runs on `pull_request`.
+2. Merge into protected `main` after required checks pass.
+3. `CI` runs on `push` to `main`.
+4. `Fly Deploy` runs only when that `CI` workflow completes successfully.
 
 ## Production Operations
 
@@ -278,7 +295,7 @@ npm run build
 Post-deploy smoke check:
 
 ```bash
-npm run deploy:check -- https://<your-railway-domain>
+npm run deploy:check -- https://<your-fly-domain>
 ```
 
 ## Troubleshooting
