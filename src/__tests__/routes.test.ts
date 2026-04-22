@@ -89,6 +89,17 @@ describe("routes", () => {
       );
     });
 
+    it("allows localhost origins on non-default preview ports in local development", async () => {
+      const res = await request(app)
+        .get("/health")
+        .set("Origin", "http://localhost:3002");
+
+      expect(res.status).toBe(200);
+      expect(res.headers["access-control-allow-origin"]).toBe(
+        "http://localhost:3002",
+      );
+    });
+
     it("rejects non-allowed origins", async () => {
       const res = await request(app)
         .get("/health")
@@ -121,11 +132,11 @@ describe("routes", () => {
 
       const res = await request(allowlistApp)
         .get("/health")
-        .set("Origin", "http://localhost:3000");
+        .set("Origin", "http://localhost:3002");
 
       expect(res.status).toBe(200);
       expect(res.headers["access-control-allow-origin"]).toBe(
-        "http://localhost:3000",
+        "http://localhost:3002",
       );
     });
 

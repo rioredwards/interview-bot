@@ -10,6 +10,8 @@ export interface ChatMessage {
 export interface TokenUsage {
   inputTokens: number;
   outputTokens: number;
+  cacheCreationInputTokens?: number;
+  cacheReadInputTokens?: number;
 }
 
 export interface ChatResult {
@@ -83,7 +85,13 @@ async function callAnthropic(
     anthropic.messages.create({
       model: "claude-sonnet-4-5",
       max_tokens: 1024,
-      system: systemPrompt,
+      system: [
+        {
+          type: "text",
+          text: systemPrompt,
+          cache_control: { type: "ephemeral" },
+        },
+      ],
       messages,
     }),
     "anthropic",
@@ -94,6 +102,8 @@ async function callAnthropic(
   const tokens: TokenUsage = {
     inputTokens: response.usage.input_tokens,
     outputTokens: response.usage.output_tokens,
+    cacheCreationInputTokens: response.usage.cache_creation_input_tokens ?? undefined,
+    cacheReadInputTokens: response.usage.cache_read_input_tokens ?? undefined,
   };
   return { reply, tokens };
 }
