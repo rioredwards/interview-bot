@@ -160,35 +160,9 @@ Notes:
 
 ## Deployment
 
-### Option A: Self-hosted with Tailscale Funnel (current production pattern)
+### Option A: Deploy to a Node host (Render, Railway, Fly.io, similar)
 
-1. Build and run the service on the host:
-
-```bash
-npm ci
-npm run build
-PORT=1807 npm run start
-```
-
-2. Expose the process publicly via Tailscale Funnel:
-
-```bash
-tailscale funnel 1807
-```
-
-3. Copy the generated HTTPS URL (for example `https://<machine>.<tailnet>.ts.net`).
-4. In the portfolio frontend deployment environment, set:
-   - `NEXT_PUBLIC_INTERVIEW_BOT_URL=<funnel-url>`
-5. Set API env vars on the bot host:
-   - `CORS_ALLOWED_ORIGINS=https://rioedwards.com,https://www.rioedwards.com`
-   - `TRUST_PROXY=1`
-6. Verify from a public network:
-
-```bash
-curl https://<machine>.<tailnet>.ts.net/health
-```
-
-### Option B: Deploy to a Node host (Render, Railway, Fly.io, similar)
+Current production runs on Railway.
 
 1. Set build command: `npm ci && npm run build`
 2. Set start command: `npm run start`
@@ -199,6 +173,30 @@ curl https://<machine>.<tailnet>.ts.net/health
 7. Set `PORT` only if your host requires a fixed value.
 8. Confirm public health endpoint returns `{ "status": "ok" }`.
 9. Point `NEXT_PUBLIC_INTERVIEW_BOT_URL` to the hosted HTTPS URL.
+
+### Option B: Self-hosted behind your own public ingress
+
+1. Build and run the service on the host:
+
+```bash
+npm ci
+npm run build
+PORT=1807 npm run start
+```
+
+2. Expose the process publicly using your preferred ingress layer.
+
+3. Copy the generated HTTPS URL.
+4. In the portfolio frontend deployment environment, set:
+   - `NEXT_PUBLIC_INTERVIEW_BOT_URL=<public-bot-url>`
+5. Set API env vars on the bot host:
+   - `CORS_ALLOWED_ORIGINS=https://rioedwards.com,https://www.rioedwards.com`
+   - `TRUST_PROXY=1`
+6. Verify from a public network:
+
+```bash
+curl https://<public-bot-url>/health
+```
 
 ### Railway config in repo
 
