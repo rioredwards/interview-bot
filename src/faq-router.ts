@@ -52,8 +52,9 @@ const intents: FaqIntent[] = [
       ["about", "rio"],
     ],
     reply:
-      "Rio Edwards is a product-minded full-stack TypeScript engineer based in Portland, Oregon. " +
-      "He has strong React and Next.js experience and a track record of shipping production software " +
+      "Rio Edwards is a frontend engineer based in Portland, Oregon. " +
+      "He specializes in React, Next.js, and TypeScript, with a strong eye for design, " +
+      "accessibility, and performance. He has a track record of shipping polished production software " +
       "across client work, self-hosted products, developer tooling, and teaching. " +
       "Feel free to ask about specific projects, skills, or experience!",
   },
@@ -76,7 +77,7 @@ const intents: FaqIntent[] = [
     ],
     reply:
       "Rio's recent work experience includes:\n\n" +
-      "- **Co-founder and Product Engineer at Experiential (Jul 2024 - Nov 2025)**: led client projects end-to-end from requirements and design through architecture and delivery\n" +
+      "- **Frontend Engineer at Experiential (Jul 2024 - Nov 2025)**: led client projects end-to-end from requirements and design through architecture and delivery\n" +
       "- **Cohort Instructional Lead at Code the Dream (Sep 2024 - Jun 2025)**: taught 200+ students and delivered detailed engineering feedback\n" +
       "- **Student Mentor at Code the Dream (Jan 2024 - Nov 2024)**: supported learners in office hours, lectures, and async mentoring\n" +
       "- **Frontend Engineer at Code for PDX (Sep 2023 - Nov 2024)**: contributed accessible, tested UI in a civic-tech codebase\n\n" +
@@ -167,10 +168,11 @@ const intents: FaqIntent[] = [
     ],
     keywords: [["backend"], ["server", "side"]],
     reply:
-      "Rio is not just a frontend developer. While frontend is a major strength, he also works across " +
-      "backend APIs, auth systems, infrastructure, CI/CD, cloud services, observability, and deployment. " +
-      "DogTown is a strong example, with its Node/Postgres backend, Docker Compose setup, NGINX caching, " +
-      "and Python/FastAPI moderation microservice.",
+      "Frontend is Rio's primary focus and greatest strength, but he has solid backend fundamentals " +
+      "that make him unusually self-sufficient. He can build and own APIs, set up auth, manage deployments, " +
+      "and debug production issues without needing a dedicated backend engineer for every task. " +
+      "DogTown is a good example: full-stack Next.js app with a Node/Postgres backend, Docker Compose, " +
+      "NGINX, and a Python/FastAPI moderation microservice — all self-hosted on a Raspberry Pi.",
   },
   {
     intent: "mobile_experience",
