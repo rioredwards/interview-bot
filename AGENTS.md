@@ -1,1 +1,3 @@
-/Users/rioredwards/dev/agent-skills/instructions/base-AGENTS.md
+# interview-bot
+
+**Class:** `production`
